@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Tracker - Auth</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // ---------------------------------------------------
+    // 🔥 FIREBASE CONFIG & INITIALIZATION
+    // ---------------------------------------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+      getAuth, 
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      GoogleAuthProvider,
+      signInWithPopup,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    // Replace with your actual Firebase config
+    const firebaseConfig = {
+  apiKey: "AIzaSyBsgJAuSeZPhmFmriHyZ18pm4iE551lqww",
+  authDomain: "finance-tracker-36ba4.firebaseapp.com",
+  projectId: "finance-tracker-36ba4",
+  storageBucket: "finance-tracker-36ba4.firebasestorage.app",
+  messagingSenderId: "225771628304",
+  appId: "1:225771628304:web:d25cec52accc4dd1636795"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // ---------------------------------------------------
+    // 🔥 AUTH STATE OBSERVER
+    // ---------------------------------------------------
+   // onAuthStateChanged(auth, (user) => {
+  //if (user) {
+   // setTimeout(() => {
+    //  window.location.href = "dashboard.html";
+   // }, 4000); // Wait 1 second
+  //}
+   // });
+
+    // ---------------------------------------------------
+    // 🔥 AUTH FUNCTIONS
+    // ---------------------------------------------------
+
+    // SIGN IN
+    window.login = function(e) {
+      e.preventDefault();
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+      const errorBox = document.getElementById("loginError");
+      
+      errorBox.classList.add("hidden");
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+          window.location.href = "dashboard.html";
+        })
+        .catch(err => {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+        });
+    };
+
+    // CREATE ACCOUNT
+    window.register = function(e) {
+      e.preventDefault();
+      const email = document.getElementById("regEmail").value;
+      const password = document.getElementById("regPassword").value;
+      const errorBox = document.getElementById("registerError");
+      
+      errorBox.classList.add("hidden");
+
+      createUserWithEmailAndPassword(auth, email, password)
+  .then(() => {
+    // Sign out the user immediately
+    auth.signOut();
+    // Show success message
+    alert("Account created successfully! Please sign in.");
+    // Switch to sign in form
+    document.getElementById("tabSignIn").click();
+  })
+        
+        .catch(err => {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+        });
+    };
+
+    // GOOGLE LOGIN
+    window.googleLogin = function() {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider)
+        .then(() => {
+          window.location.href = "dashboard.html";
+        })
+        .catch(err => {
+          alert(err.message);
+        });
+    };
+
+  </script>
+
+</head>
+
+<body class="bg-gray-50">
+  <div class="min-h-screen flex items-center justify-center px-6">
+
+    <div class="grid md:grid-cols-2 w-full max-w-6xl bg-white p-10 rounded-3xl shadow-lg">
+
+      <!-- LEFT SIDE -->
+      <div class="flex flex-col justify-center space-y-6 p-6">
+        <div class="bg-green-100 w-20 h-20 flex items-center justify-center rounded-2xl mx-auto">
+          <span class="text-4xl">📈</span>
+        </div>
+
+        <h1 class="text-4xl font-bold text-center">Manage Your Money</h1>
+        <p class="text-gray-600 text-center">
+          Track expenses, visualize spending patterns, and take control of your finances with our intuitive personal finance tracker.
+        </p>
+
+        <ul class="space-y-3 text-gray-700">
+          <li class="flex items-center gap-2"> Real-time expense tracking</li>
+          <li class="flex items-center gap-2"> Smart analytics & insights</li>
+          <li class="flex items-center gap-2"> Export & backup your data</li>
+        </ul>
+      </div>
+
+      <!-- RIGHT SIDE -->
+      <div class="border rounded-2xl p-8">
+
+        <!-- Tabs -->
+        <div class="flex border-b mb-6">
+          <button id="tabSignIn" class="w-1/2 py-3 text-center font-semibold border-b-2 border-green-500">
+            Sign In
+          </button>
+          <button id="tabSignUp" class="w-1/2 py-3 text-center font-semibold text-gray-500">
+            Create Account
+          </button>
+        </div>
+
+        <!-- SIGN IN FORM -->
+        <form id="signInForm" class="space-y-4" onsubmit="login(event)">
+          <p id="loginError" class="hidden text-red-500 text-sm mb-2"></p>
+
+          <div>
+            <label class="text-sm">Email</label>
+            <input id="loginEmail" type="email" class="w-full p-3 border rounded-lg" required>
+          </div>
+
+          <div>
+            <label class="text-sm">Password</label>
+            <input id="loginPassword" type="password" class="w-full p-3 border rounded-lg" required>
+          </div>
+
+          <button class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold">
+            Sign In
+          </button>
+
+          <div class="text-center text-gray-500">Or continue with</div>
+
+          <button type="button" onclick="googleLogin()" class="w-full border py-3 rounded-lg flex items-center justify-center gap-2">
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5">
+            Google
+          </button>
+        </form>
+
+        <!-- SIGN UP FORM -->
+        <form id="signUpForm" class="space-y-4 hidden" onsubmit="register(event)">
+          <p id="registerError" class="hidden text-red-500 text-sm mb-2"></p>
+
+          <div>
+            <label class="text-sm">Full Name</label>
+            <input id="regFullName" type="text" class="w-full p-3 border rounded-lg" required>
+          </div>
+
+          <div>
+            <label class="text-sm">Email</label>
+            <input id="regEmail" type="email" class="w-full p-3 border rounded-lg" required>
+          </div>
+
+          <div>
+            <label class="text-sm">Password</label>
+            <input id="regPassword" type="password" class="w-full p-3 border rounded-lg" required>
+          </div>
+
+          <button class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold">
+            Create Account
+          </button>
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB SWITCH SCRIPT -->
+  <script>
+    const tabIn = document.getElementById("tabSignIn");
+    const tabUp = document.getElementById("tabSignUp");
+    const formIn = document.getElementById("signInForm");
+    const formUp = document.getElementById("signUpForm");
+
+    tabIn.onclick = () => {
+      tabIn.classList.add("border-green-500");
+      tabUp.classList.remove("border-green-500", "text-black");
+      tabUp.classList.add("text-gray-500");
+
+      formIn.classList.remove("hidden");
+      formUp.classList.add("hidden");
+    };
+
+    tabUp.onclick = () => {
+      tabUp.classList.add("border-green-500", "text-black");
+      tabIn.classList.remove("border-green-500");
+
+      formUp.classList.remove("hidden");
+      formIn.classList.add("hidden");
+    };
+  </script>
+
+</body>
+</html>
