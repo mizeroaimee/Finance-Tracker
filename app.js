@@ -1,313 +1,574 @@
-// app.js
+/***********************************************
+ * app.js - Integrated (Dashboard + Transactions)
+ ***********************************************/
 
-// app.js (Add this early in the file)
-
-const dashboardView = document.getElementById('dashboard-view');
-const transactionsView = document.getElementById('transactions-view');
+/* -------------------------
+   1) Basic DOM selectors & helpers
+   ------------------------- */
 const navItems = document.querySelectorAll('.nav-item a');
+const viewContent = document.getElementById('view-content');
 
-function switchView(viewName) {
-    // Hide all views first (if you have many)
-    document.getElementById('view-content').querySelectorAll('div[id$="-view"]').forEach(view => {
-        view.classList.add('view-hidden');
-    });
+const totalBalanceEl = document.getElementById('total-balance');
+const monthlyIncomeEl = document.getElementById('monthly-income');
+const monthlyExpenseEl = document.getElementById('monthly-expenses');
 
-    // Show the requested view
-    const targetView = document.getElementById(`${viewName}-view`);
-    if (targetView) {
-        targetView.classList.remove('view-hidden');
-    }
-    
-    // Update active class on sidebar
-    navItems.forEach(item => {
-        item.parentElement.classList.remove('active');
-        if (item.getAttribute('data-view') === viewName) {
-            item.parentElement.classList.add('active');
-            // Update the header h1 dynamically (optional)
-            document.querySelector('.main-header h1').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
-        }
-    });
-
-    // If we switch to transactions, load the list
-    if (viewName === 'transactions') {
-        fetchAndRenderTransactionList();
-    } else if (viewName === 'dashboard') {
-        fetchAndRenderDashboardData(); // Reload dashboard data
-    }
-}
-
-
-// Add Event Listener to navigation items
-document.addEventListener('DOMContentLoaded', () => {
-    // ... existing content for DOMContentLoaded ...
-    navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            const view = e.currentTarget.getAttribute('data-view');
-            switchView(view);
-        });
-    });
-    
-    // Initial view load
-    switchView('dashboard'); // Start on the dashboard
-});
-
-// 1. Firebase Configuration (REPLACE with your actual keys from Firebase Console)
-const firebaseConfig = {
-  apiKey: "AIzaSyBsgJAuSeZPhmFmriHyZ18pm4iE551lqww",
-  authDomain: "finance-tracker-36ba4.firebaseapp.com",
-  projectId: "finance-tracker-36ba4",
-  storageBucket: "finance-tracker-36ba4.firebasestorage.app",
-  messagingSenderId: "225771628304",
-  appId: "1:225771628304:web:d25cec52accc4dd1636795"
-};
-
-// 2. Initialize Firebase and Firestore
-const app = firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-console.log("Firebase initialized successfully. Ready to connect to Firestore!");
-
-// --- Placeholder for other functions (updateDashboardUI, renderBalanceChart, etc.) ---
-
-// 3. Initial Load
-document.addEventListener('DOMContentLoaded', () => {
-    // When the DOM is ready, we'll start fetching data from Firebase
-    // fetchAndRenderDashboardData(); 
-});
-// Function to render the Chart.js graph
-function renderBalanceChart(chartDataPoints, chartLabels) {
-    
-    // Clear the previous chart instance if any
-    if (window.myBalanceChart) {
-        window.myBalanceChart.destroy();
-    }
-
-    const ctx = chartCanvas.getContext('2d');
-
-    window.myBalanceChart = new Chart(ctx, {
-        type: 'line', 
-        data: {
-            labels: chartLabels,
-            datasets: [{
-                label: 'Balance',
-                data: chartDataPoints,
-                borderColor: '#1abc9c', 
-                backgroundColor: 'rgba(26, 188, 156, 0.2)', 
-                tension: 0.4, // Curved lines
-                pointRadius: 3, // Shows points for clarity
-                pointHoverRadius: 5,
-                fill: true, 
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false, 
-            plugins: {
-                legend: { display: false },
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 750, // To match the 0, 750, 1500, 2250, 3000 axis in your image
-                        callback: function(value) { return value.toLocaleString('en-US'); }
-                    }
-                },
-                x: {
-                    grid: { display: false }
-                }
-            }
-        }
-    });
-}
-// Function to calculate and update dashboard figures
-function fetchAndRenderDashboardData() {
-    
-    // *** PLACEHOLDER DATA (TO BE REPLACED BY FIREBASE DATA) ***
-    const transactions = [
-        { date: '2025-01-01', type: 'Credit', amount: 2500, balance: 2500 },
-        { date: '2025-01-05', type: 'Debit', amount: 250, balance: 2250 },
-        { date: '2025-01-10', type: 'Credit', amount: 750, balance: 3000 },
-        { date: '2025-01-15', type: 'Debit', amount: 900, balance: 2100 },
-        { date: '2025-01-20', type: 'Credit', amount: 100, balance: 2200 },
-        { date: '2025-01-25', type: 'Credit', amount: 300, balance: 2500 },
-        // ... imagine hundreds of entries
-    ];
-
-    // 1. Calculate Summary Metrics
-    let totalBalance = 8234.56; // Final balance
-    let monthlyIncome = 6200.00; // Total income for current month
-    let monthlyExpense = 1250.50; // Total expense for current month
-
-    // 2. Prepare Chart Data (using the placeholder transactions for the line shape)
-    // We'll use the dates and the running balance for the trend chart
-    const chartLabels = transactions.map(t => new Date(t.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
-    const chartDataPoints = transactions.map(t => t.balance);
-
-    // Add "Today" as the final label point to match the design
-    chartLabels.push('Today');
-    // Use the final balance for today's point
-    chartDataPoints.push(totalBalance); 
-
-    // 3. Update the UI Cards
-    totalBalanceEl.textContent = currencyFormatter.format(totalBalance);
-    monthlyIncomeEl.textContent = currencyFormatter.format(monthlyIncome);
-    monthlyExpenseEl.textContent = currencyFormatter.format(monthlyExpense);
-
-    // 4. Render the Chart
-    renderBalanceChart(chartDataPoints, chartLabels);
-    
-    console.log("Dashboard figures and chart rendered using mock data.");
-}
-// Initial load when the page is ready
-document.addEventListener('DOMContentLoaded', () => {
-    // We call the function to fetch data and update the dashboard UI
-    fetchAndRenderDashboardData(); 
-});
-
-
-
-// app.js (Add this after the renderBalanceChart function)
+const recentContainer = document.getElementById('recent-transactions-list');
 
 const transactionListEl = document.getElementById('transaction-list');
 const txTotalIncomeEl = document.getElementById('tx-total-income');
 const txTotalExpenseEl = document.getElementById('tx-total-expense');
 const txNetBalanceEl = document.getElementById('tx-net-balance');
 
-function createTransactionItemHTML(transaction) {
-    const isCredit = transaction.type === 'Credit';
-    const amountClass = isCredit ? 'tx-amount-positive' : 'tx-amount-negative';
-    const amountSign = isCredit ? '+' : '-';
-    const amountValue = Math.abs(transaction.amount).toFixed(2);
-    const borderColor = isCredit ? '#1abc9c' : '#222020ff';
-    
-    // Simple icon mapping (expand this later)
-    const iconClass = transaction.category === 'Salary' ? 'fas fa-money-check-alt' :
-                      transaction.category === 'Food' ? 'fas fa-utensils' :
-                      transaction.category === 'Entertainment' ? 'fas fa-tv' : 'fas fa-wallet';
-                      
-    const dateFormatted = transaction.date.toDate().toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+const searchInput = document.getElementById('searchInput');
+const filterType = document.getElementById('filterType');
+const filterCategory = document.getElementById('filterCategory');
+const clearFiltersBtn = document.getElementById('clearFiltersBtn');
 
-    return `
-        <div class="transaction-item" style="border-left-color: ${borderColor};">
-            <div class="tx-icon" style="background-color: ${borderColor};">
-                <i class="${iconClass}"></i>
-            </div>
-            <div class="tx-details">
-                <p class="tx-title">${transaction.description}</p>
-                <p class="tx-category">${transaction.category}</p>
-            </div>
-            <div class="tx-amount-col">
-                <p class="${amountClass}">${amountSign}${currencyFormatter.format(amountValue)}</p>
-                <p class="tx-date">${dateFormatted}</p>
-            </div>
-            <div class="tx-actions">
-                <button title="Edit" data-id="${transaction.id}"><i class="fas fa-edit"></i></button>
-                <button title="Delete" data-id="${transaction.id}"><i class="fas fa-trash-alt"></i></button>
-            </div>
-        </div>
-    `;
+const addTransactionBtn = document.getElementById('addTransactionBtn');
+const viewAllBtn = document.getElementById('viewAllBtn');
+
+/* Modal elements */
+const modalOverlay = document.getElementById('modalOverlay');
+const modalTitle = document.getElementById('modalTitle');
+const modalCancel = document.getElementById('modalCancel');
+const modalSave = document.getElementById('modalSave');
+
+const txTitle = document.getElementById('txTitle');
+const txAmount = document.getElementById('txAmount');
+const txType = document.getElementById('txType');
+const txCategory = document.getElementById('txCategory');
+const txDate = document.getElementById('txDate');
+const txDescription = document.getElementById('txDescription');
+
+let editingTransactionId = null;
+let allCategories = [
+  'Salary','Food','Transport','Shopping','Entertainment','Bills','Health','Other'
+];
+
+/* Currency formatter */
+const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+/* Utility to convert Firestore Timestamp or string to JS Date */
+function toDateObject(dateVal) {
+  if (!dateVal) return new Date();
+  if (dateVal.toDate && typeof dateVal.toDate === 'function') return dateVal.toDate();
+  return new Date(dateVal);
 }
 
-// Function to fetch and render the list (uses Firestore real-time listener)
-function fetchAndRenderTransactionList() {
-    transactionListEl.innerHTML = '<p class="loading-message">Fetching transactions...</p>';
-    
-    db.collection("transactions")
-      .orderBy('date', 'desc') // Show newest transactions first
-      .onSnapshot((snapshot) => {
-        let listHTML = '';
-        let incomeTotal = 0;
-        let expenseTotal = 0;
-        let netBalance = 0;
-        
-        snapshot.forEach((doc) => {
-            const transaction = doc.data();
-            transaction.id = doc.id; // Store document ID for edit/delete
-            listHTML += createTransactionItemHTML(transaction);
+/* -------------------------
+   2) Firebase Initialization
+   ------------------------- */
+// REPLACE with your project's config if different
+const firebaseConfig = {
+  apiKey: "AIzaSyBsgJAuSeZPhmFmriHyZ18pm4iE551lqww",
+  authDomain: "finance-tracker-36ba4.firebaseapp.com",
+  projectId: "finance-tracker-36ba4",
+  storageBucket: "finance-tracker-36ba4.firebasestorage.app",
+  messagingSenderId: "225771628304",
+  appId: "1:225771628304:web:d25cec52accc52accc4dd1636795"
+};
 
-            // Calculate totals
-            if (transaction.type === 'Credit') {
-                incomeTotal += transaction.amount;
-            } else if (transaction.type === 'Debit') {
-                expenseTotal += Math.abs(transaction.amount);
-            }
-        });
-        
-        netBalance = incomeTotal - expenseTotal;
-        
-        // Update the list and summary cards
-        transactionListEl.innerHTML = listHTML || '<p class="loading-message">No transactions found.</p>';
-        txTotalIncomeEl.textContent = currencyFormatter.format(incomeTotal);
-        txTotalExpenseEl.textContent = currencyFormatter.format(expenseTotal);
-        txNetBalanceEl.textContent = currencyFormatter.format(netBalance);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-        // This is where you would also attach listeners for the edit/delete buttons
-        // attachTransactionActionListeners();
-        
-        console.log(`Transaction List updated with ${snapshot.size} items.`);
-    });
+/* -------------------------
+   3) View switching
+   ------------------------- */
+function switchView(viewName) {
+  // hide others
+  viewContent.querySelectorAll('.view').forEach(v => v.classList.add('view-hidden'));
+  const target = document.getElementById(`${viewName}-view`);
+  if (target) target.classList.remove('view-hidden');
+
+  // nav active
+  navItems.forEach(item => {
+    item.parentElement.classList.remove('active');
+    if (item.getAttribute('data-view') === viewName) item.parentElement.classList.add('active');
+  });
+
+  document.querySelector('.main-header h1').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
+
+  // Load content for certain views
+  if (viewName === 'transactions') {
+    // list is updated in real-time from Firestore listener
+  } else if (viewName === 'dashboard') {
+    // dashboard data comes from the same listener too
+  }
 }
-// Add this function to the bottom of app.js
-
-function renderBalanceChart() {
-    // Data extracted from the sample chart image (simplified)
-    const chartLabels = ['Jan 1', 'Jan 5', 'Jan 10', 'Jan 15', 'Jan 20', 'Jan 25', 'Today'];
-    const chartDataPoints = [2400, 2250, 3000, 2100, 2200, 2500, 2150]; // Example balance values
-
-    const ctx = document.getElementById('balance-trend-chart').getContext('2d');
-
-    new Chart(ctx, {
-        type: 'line', // Line chart type
-        data: {
-            labels: chartLabels,
-            datasets: [{
-                label: 'Balance',
-                data: chartDataPoints,
-                borderColor: '#1abc9c', // Green color from your design
-                backgroundColor: 'rgba(26, 188, 156, 0.2)', // Light fill color
-                tension: 0.4, // Makes the line curved (like in the design)
-                pointRadius: 0, // Hide the points by default
-                fill: true, // Fill the area under the line
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false, // Allows the chart to respect the height: 300px
-            plugins: {
-                legend: {
-                    display: false // No legend needed for a single line
-                },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    // Optional: Custom tooltip to show date and balance
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    // Custom Y-axis ticks to match the design (0, 750, 1500, 2250, 3000)
-                    ticks: {
-                        stepSize: 750,
-                        callback: function(value) {
-                            return value.toLocaleString('en-US'); // Format number with commas
-                        }
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false // Hide vertical grid lines
-                    }
-                }
-            }
-        }
-    });
-}
-// Update the Initial Load section to include the chart rendering
 
 document.addEventListener('DOMContentLoaded', () => {
-    updateDashboardUI();
-    renderBalanceChart(); // CALL THE NEW CHART FUNCTION
+  navItems.forEach(item => {
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      switchView(e.currentTarget.getAttribute('data-view'));
+    });
+  });
+
+  // initial
+  switchView('dashboard');
+
+  // Populate category selects
+  loadCategoriesToFilter(allCategories);
+  populateTxCategorySelect();
+
+  // Start Firestore listeners
+  initFirestoreListeners();
+});
+
+/* -------------------------
+   4) Chart (Filled Line)
+   ------------------------- */
+let balanceChartInstance = null;
+
+function renderBalanceChart(chartDataPoints, chartLabels) {
+  const ctx = document.getElementById('balance-trend-chart').getContext('2d');
+  if (balanceChartInstance) balanceChartInstance.destroy();
+
+  balanceChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartLabels,
+      datasets: [{
+        label: 'Balance',
+        data: chartDataPoints,
+        borderColor: '#1abc9c',
+        backgroundColor: 'rgba(26,188,156,0.18)',
+        tension: 0.45,
+        pointRadius: 3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 750,
+            callback: v => v.toLocaleString()
+          }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* -------------------------
+   5) Firestore listeners & data binding
+   ------------------------- */
+
+let liveTransactions = []; // cached transactions
+
+function initFirestoreListeners() {
+  // Real-time listener for transactions collection
+  db.collection("transactions").orderBy('date', 'asc').onSnapshot(snapshot => {
+    const txs = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      data.id = doc.id;
+      txs.push(data);
+    });
+
+    // store ascending order (oldest -> newest)
+    liveTransactions = txs;
+    // Update UI components
+    updateDashboardFromTransactions(liveTransactions);
+    updateTransactionListView(liveTransactions);
+    updateRecentTransactions(liveTransactions);
+    updateCategoryFilterOptions(liveTransactions);
+  }, err => {
+    console.error("Firestore listener error:", err);
+    // Fallback: if error, we keep using an empty list
+    liveTransactions = [];
+    updateDashboardFromTransactions([]);
+    updateTransactionListView([]);
+    updateRecentTransactions([]);
+  });
+}
+
+/* Update dashboard calculations and chart */
+function updateDashboardFromTransactions(transactions) {
+  // If no transactions, show zeros
+  if (!transactions || transactions.length === 0) {
+    totalBalanceEl.textContent = currencyFormatter.format(0);
+    monthlyIncomeEl.textContent = currencyFormatter.format(0);
+    monthlyExpenseEl.textContent = currencyFormatter.format(0);
+    renderBalanceChart([0], ['Today']);
+    return;
+  }
+
+  // Compute totals
+  let totalBalance = 0;
+  let monthlyIncome = 0;
+  let monthlyExpense = 0;
+
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+
+  // For chart: take last up to 7 balance points (we will derive a running balance)
+  const chartPoints = [];
+  const chartLabels = [];
+
+  // We need running balance. If transactions have a `balance` field use it; if not, compute.
+  // Try to use the last known balance as starting point if present.
+  // We'll compute an array of balances in order.
+  let computedBalances = [];
+  let knownBalanceAtEnd = null;
+  transactions.forEach(tx => {
+    const date = toDateObject(tx.date);
+    if (typeof tx.balance === 'number') knownBalanceAtEnd = tx.balance;
+  });
+
+  // If balance fields exist, use them. Otherwise compute by summing credits and debits.
+  if (knownBalanceAtEnd !== null) {
+    computedBalances = transactions.map(tx => tx.balance || 0);
+  } else {
+    // use incremental sum starting from 0 then accumulate
+    let acc = 0;
+    transactions.forEach(tx => {
+      const amt = Number(tx.amount) || 0;
+      if (tx.type === 'Credit') acc += Math.abs(amt);
+      else acc -= Math.abs(amt);
+      computedBalances.push(acc);
+    });
+  }
+
+  // Chart: pick up to last 7 points
+  const lastN = 7;
+  const totalLen = transactions.length;
+  const startIndex = Math.max(0, totalLen - lastN);
+  for (let i = startIndex; i < totalLen; i++) {
+    const tx = transactions[i];
+    const date = toDateObject(tx.date);
+    chartLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    chartPoints.push(computedBalances[i]);
+  }
+  // append Today point using last computed balance (or 0)
+  const lastBalance = computedBalances.length ? computedBalances[computedBalances.length - 1] : 0;
+  chartLabels.push('Today');
+  chartPoints.push(lastBalance);
+
+  // Totals (monthly)
+  transactions.forEach(tx => {
+    const date = toDateObject(tx.date);
+    // totals for ledger
+    if (tx.type === 'Credit') totalBalance += Number(tx.amount || 0);
+    else totalBalance -= Number(tx.amount || 0);
+
+    if (date.getMonth() === thisMonth && date.getFullYear() === thisYear) {
+      if (tx.type === 'Credit') monthlyIncome += Number(tx.amount || 0);
+      else monthlyExpense += Math.abs(Number(tx.amount || 0));
+    }
+  });
+
+  // Display (ensure positive display of total balance as end balance)
+  totalBalanceEl.textContent = currencyFormatter.format(lastBalance || 0);
+  monthlyIncomeEl.textContent = currencyFormatter.format(monthlyIncome);
+  monthlyExpenseEl.textContent = currencyFormatter.format(monthlyExpense);
+
+  // Render chart with values (ensure numbers)
+  renderBalanceChart(chartPoints.map(n => Number(n || 0)), chartLabels);
+}
+
+/* -------------------------
+   6) Recent transactions for dashboard
+   ------------------------- */
+function updateRecentTransactions(transactions) {
+  const container = recentContainer;
+  container.innerHTML = '';
+
+  if (!transactions || transactions.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">No recent transactions</p>';
+    return;
+  }
+
+  const last3 = transactions.slice(-3).reverse();
+  const icons = {
+    'Salary': 'fa-money-check-alt',
+    'Food': 'fa-utensils',
+    'Transport': 'fa-car',
+    'Shopping': 'fa-shopping-cart',
+    'Entertainment': 'fa-tv',
+    'Bills': 'fa-file-invoice-dollar',
+    'Health': 'fa-heartbeat',
+    'Other': 'fa-wallet'
+  };
+
+  let html = '';
+  last3.forEach(tx => {
+    const isCredit = tx.type === 'Credit';
+    const color = isCredit ? '#1abc9c' : '#ff6b6b';
+    const sign = isCredit ? '+' : '-';
+    const date = toDateObject(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    html += `
+      <div class="transaction-item" style="display:flex;align-items:center;gap:14px;padding:12px;border-radius:12px;background:#fbfefe;">
+        <div style="width:44px;height:44px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;">
+          <i class="fas ${icons[tx.category] || 'fa-wallet'}"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:700;">${tx.description || tx.title || 'Transaction'}</div>
+          <div style="color:#6b7280;font-size:13px;margin-top:6px;">${tx.category || 'Other'} • ${date}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:800;color:${color};">${sign}${currencyFormatter.format(Math.abs(Number(tx.amount || 0)))}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+/* -------------------------
+   7) Transaction list view + filters
+   ------------------------- */
+function updateTransactionListView(transactions) {
+  // Render based on current filters
+  allTransactionsForUI = transactions.map(tx => ({
+    id: tx.id,
+    title: tx.description || tx.title || 'Transaction',
+    amount: Number(tx.amount || 0),
+    type: tx.type || 'Debit',
+    category: tx.category || 'Other',
+    date: toDateObject(tx.date),
+    raw: tx
+  }));
+  applyFiltersAndRender();
+}
+
+let allTransactionsForUI = [];
+
+// Render the transaction cards
+function renderTransactions(list) {
+  transactionListEl.innerHTML = '';
+  if (!list || list.length === 0) {
+    transactionListEl.innerHTML = '<p style="text-align:center;padding:14px;color:#777;">No transactions found.</p>';
+    txTotalIncomeEl.textContent = currencyFormatter.format(0);
+    txTotalExpenseEl.textContent = currencyFormatter.format(0);
+    txNetBalanceEl.textContent = currencyFormatter.format(0);
+    return;
+  }
+
+  // Calculate totals for summary
+  let income = 0, expense = 0;
+  list.slice().reverse().forEach(t => {
+    if (t.type === 'Credit') income += Math.abs(Number(t.amount || 0));
+    else expense += Math.abs(Number(t.amount || 0));
+  });
+
+  txTotalIncomeEl.textContent = currencyFormatter.format(income);
+  txTotalExpenseEl.textContent = currencyFormatter.format(expense);
+  txNetBalanceEl.textContent = currencyFormatter.format(income - expense);
+
+  // Render cards
+  let html = '';
+  list.slice().reverse().forEach(t => {
+    const date = t.date instanceof Date ? t.date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : String(t.date);
+    const isCredit = t.type === 'Credit';
+    const colorClass = isCredit ? 'amount-income' : 'amount-expense';
+    html += `
+      <div class="transaction-card">
+        <div class="transaction-left">
+          <div class="transaction-title">${t.title}</div>
+          <div class="trans-info">
+            <div class="${isCredit ? 'dot-income' : 'dot-expense'}"></div>
+            <div class="category-pill ${isCredit ? 'cat-income' : 'cat-expense'}" style="margin-left:6px;">${t.category}</div>
+            <div style="margin-left:6px;color:#6b7280;">${date}</div>
+          </div>
+        </div>
+        <div class="transaction-right">
+          <div class="transaction-amount ${colorClass}">${isCredit ? '+' : '-'}${currencyFormatter.format(Math.abs(Number(t.amount || 0)))}</div>
+          <i class="fas fa-edit" style="cursor:pointer;" onclick="openEditTransaction('${t.id}')"></i>
+          <i class="fas fa-trash" style="cursor:pointer;" onclick="deleteTransaction('${t.id}')"></i>
+        </div>
+      </div>
+    `;
+  });
+
+  transactionListEl.innerHTML = html;
+}
+
+/* Filtering logic */
+function applyFiltersAndRender() {
+  const search = (searchInput.value || '').toLowerCase();
+  const type = filterType.value;
+  const category = filterCategory.value;
+
+  const filtered = allTransactionsForUI.filter(t => {
+    const matchesSearch = (t.title || '').toLowerCase().includes(search) || (t.category || '').toLowerCase().includes(search);
+    const matchesType = type === 'all' || t.type === type;
+    const matchesCategory = category === 'all' || t.category === category;
+    return matchesSearch && matchesType && matchesCategory;
+  });
+
+  renderTransactions(filtered);
+}
+
+/* Attach filter inputs */
+searchInput.addEventListener('input', applyFiltersAndRender);
+filterType.addEventListener('change', applyFiltersAndRender);
+filterCategory.addEventListener('change', applyFiltersAndRender);
+clearFiltersBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  filterType.value = 'all';
+  filterCategory.value = 'all';
+  applyFiltersAndRender();
+});
+
+/* Load categories into category select */
+function loadCategoriesToFilter(categories) {
+  // keep 'all' option
+  filterCategory.innerHTML = '<option value="all">All Categories</option>';
+  categories.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    filterCategory.appendChild(opt);
+  });
+}
+
+/* Dynamically update categories based on transactions */
+function updateCategoryFilterOptions(transactions) {
+  const cats = new Set(allCategories);
+  transactions.forEach(tx => { if (tx.category) cats.add(tx.category); });
+  loadCategoriesToFilter(Array.from(cats).sort());
+  populateTxCategorySelect(Array.from(cats).sort());
+}
+
+/* populate add/edit modal category select */
+function populateTxCategorySelect(categories) {
+  const cats = categories || allCategories;
+  txCategory.innerHTML = '';
+  cats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    txCategory.appendChild(opt);
+  });
+}
+
+/* -------------------------
+   8) Add / Edit / Delete transactions
+   ------------------------- */
+
+addTransactionBtn.addEventListener('click', () => openAddTransaction());
+
+viewAllBtn && viewAllBtn.addEventListener('click', () => switchView('transactions'));
+
+// Open Add modal
+function openAddTransaction() {
+  editingTransactionId = null;
+  modalTitle.textContent = 'Add Transaction';
+  txTitle.value = '';
+  txAmount.value = '';
+  txType.value = 'Credit';
+  txCategory.value = allCategories[0] || 'Other';
+  txDate.value = new Date().toISOString().slice(0,10);
+  txDescription.value = '';
+  showModal();
+}
+
+// Open Edit modal
+window.openEditTransaction = function(id) {
+  editingTransactionId = id;
+  // Fetch doc from firestore for full details
+  db.collection('transactions').doc(id).get().then(doc => {
+    if (!doc.exists) return alert('Transaction not found.');
+    const data = doc.data();
+    modalTitle.textContent = 'Edit Transaction';
+    txTitle.value = data.description || data.title || '';
+    txAmount.value = Math.abs(Number(data.amount || 0));
+    txType.value = data.type || 'Debit';
+    txCategory.value = data.category || allCategories[0] || 'Other';
+    const d = toDateObject(data.date);
+    txDate.value = d.toISOString().slice(0,10);
+    txDescription.value = data.note || data.description || '';
+    showModal();
+  }).catch(err => {
+    console.error(err);
+    alert('Unable to load transaction for editing.');
+  });
+};
+
+function showModal() {
+  modalOverlay.classList.remove('hidden');
+}
+
+modalCancel.addEventListener('click', () => {
+  modalOverlay.classList.add('hidden');
+  editingTransactionId = null;
+});
+
+// Save (add or update)
+modalSave.addEventListener('click', () => {
+  const title = txTitle.value.trim();
+  const amount = Number(txAmount.value || 0);
+  const type = txType.value;
+  const category = txCategory.value || 'Other';
+  const dateVal = txDate.value ? new Date(txDate.value) : new Date();
+  const description = txDescription.value || '';
+
+  if (!title || !amount) {
+    return alert('Please provide title and amount.');
+  }
+
+  const payload = {
+    description: title,
+    amount: Math.abs(amount),
+    type: type,
+    category: category,
+    date: firebase.firestore.Timestamp.fromDate(dateVal),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if (editingTransactionId) {
+    db.collection('transactions').doc(editingTransactionId).update(payload).then(() => {
+      modalOverlay.classList.add('hidden');
+      editingTransactionId = null;
+    }).catch(err => {
+      console.error(err); alert('Failed to update transaction.');
+    });
+  } else {
+    // create new
+    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('transactions').add(payload).then(() => {
+      modalOverlay.classList.add('hidden');
+    }).catch(err => {
+      console.error(err); alert('Failed to add transaction.');
+    });
+  }
+});
+
+// Delete
+window.deleteTransaction = function(id) {
+  if (!confirm('Delete this transaction?')) return;
+  db.collection('transactions').doc(id).delete().catch(err => {
+    console.error(err); alert('Failed to delete.');
+  });
+};
+
+/* -------------------------
+   9) Misc: sign out (placeholder)
+   ------------------------- */
+const signOutBtn = document.getElementById('signOutBtn');
+if (signOutBtn) signOutBtn.addEventListener('click', () => {
+  // If using firebase auth, sign out:
+  if (firebase.auth) {
+    firebase.auth().signOut().then(() => location.reload());
+  } else {
+    alert('Sign out not configured.');
+  }
+});
+
+/* -------------------------
+   10) Small UX helpers
+   ------------------------- */
+// Close modal with ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') modalOverlay.classList.add('hidden');
 });

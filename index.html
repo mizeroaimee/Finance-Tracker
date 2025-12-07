@@ -1,229 +1,230 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Finance Tracker - Auth</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Finance — Personal Tracker</title>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    // ---------------------------------------------------
-    // 🔥 FIREBASE CONFIG & INITIALIZATION
-    // ---------------------------------------------------
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { 
-      getAuth, 
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      GoogleAuthProvider,
-      signInWithPopup,
-      onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css" />
 
-    // Replace with your actual Firebase config
-    const firebaseConfig = {
-  apiKey: "AIzaSyBsgJAuSeZPhmFmriHyZ18pm4iE551lqww",
-  authDomain: "finance-tracker-36ba4.firebaseapp.com",
-  projectId: "finance-tracker-36ba4",
-  storageBucket: "finance-tracker-36ba4.firebasestorage.app",
-  messagingSenderId: "225771628304",
-  appId: "1:225771628304:web:d25cec52accc4dd1636795"
-    };
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-    // ---------------------------------------------------
-    // 🔥 AUTH STATE OBSERVER
-    // ---------------------------------------------------
-   // onAuthStateChanged(auth, (user) => {
-  //if (user) {
-   // setTimeout(() => {
-    //  window.location.href = "dashboard.html";
-   // }, 4000); // Wait 1 second
-  //}
-   // });
-
-    // ---------------------------------------------------
-    // 🔥 AUTH FUNCTIONS
-    // ---------------------------------------------------
-
-    // SIGN IN
-    window.login = function(e) {
-      e.preventDefault();
-      const email = document.getElementById("loginEmail").value;
-      const password = document.getElementById("loginPassword").value;
-      const errorBox = document.getElementById("loginError");
-      
-      errorBox.classList.add("hidden");
-
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => {
-          window.location.href = "dashboard.html";
-        })
-        .catch(err => {
-          errorBox.textContent = err.message;
-          errorBox.classList.remove("hidden");
-        });
-    };
-
-    // CREATE ACCOUNT
-    window.register = function(e) {
-      e.preventDefault();
-      const email = document.getElementById("regEmail").value;
-      const password = document.getElementById("regPassword").value;
-      const errorBox = document.getElementById("registerError");
-      
-      errorBox.classList.add("hidden");
-
-      createUserWithEmailAndPassword(auth, email, password)
-  .then(() => {
-    // Sign out the user immediately
-    auth.signOut();
-    // Show success message
-    alert("Account created successfully! Please sign in.");
-    // Switch to sign in form
-    document.getElementById("tabSignIn").click();
-  })
-        
-        .catch(err => {
-          errorBox.textContent = err.message;
-          errorBox.classList.remove("hidden");
-        });
-    };
-
-    // GOOGLE LOGIN
-    window.googleLogin = function() {
-      const provider = new GoogleAuthProvider();
-      signInWithPopup(auth, provider)
-        .then(() => {
-          window.location.href = "dashboard.html";
-        })
-        .catch(err => {
-          alert(err.message);
-        });
-    };
-
-  </script>
-
+  <!-- Firebase (include Firebase libraries) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
+<body>
+  <div class="app-shell">
 
-<body class="bg-gray-50">
-  <div class="min-h-screen flex items-center justify-center px-6">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">Finance</div>
+        <div class="brand-sub">Personal Tracker</div>
+      </div>
 
-    <div class="grid md:grid-cols-2 w-full max-w-6xl bg-white p-10 rounded-3xl shadow-lg">
-
-      <!-- LEFT SIDE -->
-      <div class="flex flex-col justify-center space-y-6 p-6">
-        <div class="bg-green-100 w-20 h-20 flex items-center justify-center rounded-2xl mx-auto">
-          <span class="text-4xl">📈</span>
-        </div>
-
-        <h1 class="text-4xl font-bold text-center">Manage Your Money</h1>
-        <p class="text-gray-600 text-center">
-          Track expenses, visualize spending patterns, and take control of your finances with our intuitive personal finance tracker.
-        </p>
-
-        <ul class="space-y-3 text-gray-700">
-          <li class="flex items-center gap-2"> Real-time expense tracking</li>
-          <li class="flex items-center gap-2"> Smart analytics & insights</li>
-          <li class="flex items-center gap-2"> Export & backup your data</li>
+      <nav class="nav">
+        <ul>
+          <li class="nav-item"><a href="#" data-view="dashboard"><i class="fas fa-th-large"></i> Dashboard</a></li>
+          <li class="nav-item"><a href="#" data-view="transactions"><i class="fas fa-paper-plane"></i> Transactions</a></li>
+          <li class="nav-item"><a href="#" data-view="categories"><i class="fas fa-tags"></i> Categories</a></li>
+          <li class="nav-item"><a href="#" data-view="analytics"><i class="fas fa-chart-line"></i> Analytics</a></li>
+          <li class="nav-item"><a href="#" data-view="settings"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="signOutBtn" class="btn-ghost"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
       </div>
+    </aside>
 
-      <!-- RIGHT SIDE -->
-      <div class="border rounded-2xl p-8">
+    <!-- Main area -->
+    <main class="main">
+      <header class="main-header">
+        <h1>Dashboard</h1>
+        <div class="user-profile">
+          <div>
+            <div class="user-name">John Doe</div>
+            <div class="user-email">john@example.com</div>
+          </div>
+          <div class="avatar"><i class="fas fa-user"></i></div>
+        </div>
+      </header>
 
-        <!-- Tabs -->
-        <div class="flex border-b mb-6">
-          <button id="tabSignIn" class="w-1/2 py-3 text-center font-semibold border-b-2 border-green-500">
-            Sign In
-          </button>
-          <button id="tabSignUp" class="w-1/2 py-3 text-center font-semibold text-gray-500">
-            Create Account
-          </button>
+      <section id="view-content" class="views-container">
+
+        <!-- Dashboard view -->
+        <div id="dashboard-view" class="view">
+          <div class="dashboard-grid">
+            <div class="card summary-card">
+              <div class="card-row">
+                <div>
+                  <div class="card-title">Total Balance</div>
+                  <div id="total-balance" class="card-value">$0.00</div>
+                </div>
+                <div class="small-note">As of Today</div>
+              </div>
+            </div>
+
+            <div class="card summary-card">
+              <div class="card-title">Monthly Income</div>
+              <div id="monthly-income" class="card-value">$0.00</div>
+            </div>
+
+            <div class="card summary-card">
+              <div class="card-title">Monthly Expenses</div>
+              <div id="monthly-expenses" class="card-value">$0.00</div>
+            </div>
+          </div>
+
+          <div class="card chart-card">
+            <div class="chart-header">
+              <h3>Balance Trend</h3>
+              <div class="chart-note">Last period</div>
+            </div>
+            <div class="chart-canvas" style="height:260px;">
+              <canvas id="balance-trend-chart"></canvas>
+            </div>
+          </div>
+
+          <div class="card recent-card">
+            <div class="recent-header">
+              <h3>Recent Transactions</h3>
+              <button id="viewAllBtn" class="btn-ghost small">View all</button>
+            </div>
+            <div id="recent-transactions-list" class="recent-list"></div>
+          </div>
         </div>
 
-        <!-- SIGN IN FORM -->
-        <form id="signInForm" class="space-y-4" onsubmit="login(event)">
-          <p id="loginError" class="hidden text-red-500 text-sm mb-2"></p>
-
-          <div>
-            <label class="text-sm">Email</label>
-            <input id="loginEmail" type="email" class="w-full p-3 border rounded-lg" required>
+        <!-- Transactions view -->
+        <div id="transactions-view" class="view view-hidden">
+          <div class="transactions-header">
+            <h2>Transactions</h2>
           </div>
 
-          <div>
-            <label class="text-sm">Password</label>
-            <input id="loginPassword" type="password" class="w-full p-3 border rounded-lg" required>
+          <!-- Filters Section -->
+          <div class="filters-box">
+            <h3 class="filters-title"><i class="fas fa-filter"></i> Filters</h3>
+
+            <div class="filters-grid">
+              <!-- Search -->
+              <div class="filter-item">
+                <label>Search</label>
+                <div class="search-box">
+                  <i class="fas fa-search"></i>
+                  <input type="text" id="searchInput" placeholder="Search transactions...">
+                </div>
+              </div>
+
+              <!-- Type -->
+              <div class="filter-item">
+                <label>Type</label>
+                <select id="filterType">
+                  <option value="all">All Types</option>
+                  <option value="Credit">Income</option>
+                  <option value="Debit">Expense</option>
+                </select>
+              </div>
+
+              <!-- Category -->
+              <div class="filter-item">
+                <label>Category</label>
+                <select id="filterCategory">
+                  <option value="all">All Categories</option>
+                </select>
+              </div>
+
+              <!-- Clear Button -->
+              <div class="filter-item clear-btn-container">
+                <button id="clearFiltersBtn">Clear Filters</button>
+              </div>
+            </div>
           </div>
 
-          <button class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold">
-            Sign In
-          </button>
-
-          <div class="text-center text-gray-500">Or continue with</div>
-
-          <button type="button" onclick="googleLogin()" class="w-full border py-3 rounded-lg flex items-center justify-center gap-2">
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5">
-            Google
-          </button>
-        </form>
-
-        <!-- SIGN UP FORM -->
-        <form id="signUpForm" class="space-y-4 hidden" onsubmit="register(event)">
-          <p id="registerError" class="hidden text-red-500 text-sm mb-2"></p>
-
-          <div>
-            <label class="text-sm">Full Name</label>
-            <input id="regFullName" type="text" class="w-full p-3 border rounded-lg" required>
+          <div class="transactions-actions">
+            <button id="addTransactionBtn" class="btn-primary"><i class="fas fa-plus"></i> Add Transaction</button>
+            <div class="summary-small">
+              <div><strong id="tx-total-income">$0.00</strong> <div class="muted">Income</div></div>
+              <div><strong id="tx-total-expense">$0.00</strong> <div class="muted">Expense</div></div>
+              <div><strong id="tx-net-balance">$0.00</strong> <div class="muted">Net</div></div>
+            </div>
           </div>
 
-          <div>
-            <label class="text-sm">Email</label>
-            <input id="regEmail" type="email" class="w-full p-3 border rounded-lg" required>
+          <div id="transaction-list" class="transactions-list"></div>
+        </div>
+
+        <!-- Categories view -->
+        <div id="categories-view" class="view view-hidden">
+          <div class="card">
+            <h3>Categories</h3>
+            <p class="muted">Manage your income and expense categories.</p>
+            <div id="categoriesList"></div>
           </div>
+        </div>
 
-          <div>
-            <label class="text-sm">Password</label>
-            <input id="regPassword" type="password" class="w-full p-3 border rounded-lg" required>
+        <!-- Analytics view (placeholder) -->
+        <div id="analytics-view" class="view view-hidden">
+          <div class="card">
+            <h3>Analytics</h3>
+            <p class="muted">Coming soon — charts and breakdowns.</p>
           </div>
+        </div>
 
-          <button class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold">
-            Create Account
-          </button>
-        </form>
+        <!-- Settings view (placeholder) -->
+        <div id="settings-view" class="view view-hidden">
+          <div class="card">
+            <h3>Settings</h3>
+            <p class="muted">Profile and app preferences.</p>
+          </div>
+        </div>
 
+      </section>
+    </main>
+  </div>
+
+  <!-- Add/Edit Modals (simple implementation) -->
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="modalTitle">Add Transaction</h3>
+
+      <div class="modal-body">
+        <label>Title</label>
+        <input id="txTitle" type="text" placeholder="E.g., Monthly Salary" />
+
+        <label>Amount</label>
+        <input id="txAmount" type="number" placeholder="0.00" />
+
+        <label>Type</label>
+        <select id="txType">
+          <option value="Credit">Income</option>
+          <option value="Debit">Expense</option>
+        </select>
+
+        <label>Category</label>
+        <select id="txCategory"></select>
+
+        <label>Date</label>
+        <input id="txDate" type="date" />
+
+        <label>Description</label>
+        <input id="txDescription" type="text" placeholder="Optional description" />
       </div>
 
+      <div class="modal-actions">
+        <button id="modalCancel" class="btn-ghost">Cancel</button>
+        <button id="modalSave" class="btn-primary">Save</button>
+      </div>
     </div>
   </div>
 
-  <!-- TAB SWITCH SCRIPT -->
-  <script>
-    const tabIn = document.getElementById("tabSignIn");
-    const tabUp = document.getElementById("tabSignUp");
-    const formIn = document.getElementById("signInForm");
-    const formUp = document.getElementById("signUpForm");
-
-    tabIn.onclick = () => {
-      tabIn.classList.add("border-green-500");
-      tabUp.classList.remove("border-green-500", "text-black");
-      tabUp.classList.add("text-gray-500");
-
-      formIn.classList.remove("hidden");
-      formUp.classList.add("hidden");
-    };
-
-    tabUp.onclick = () => {
-      tabUp.classList.add("border-green-500", "text-black");
-      tabIn.classList.remove("border-green-500");
-
-      formUp.classList.remove("hidden");
-      formIn.classList.add("hidden");
-    };
-  </script>
-
+  <!-- Scripts -->
+  <script src="app.js"></script>
 </body>
 </html>
