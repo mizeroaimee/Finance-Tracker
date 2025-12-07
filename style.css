@@ -15,6 +15,13 @@ html,body { height: 100%; margin: 0; background: var(--bg); color: #1b1f23; }
 
 /* App shell */
 .app-shell { display: flex; min-height: 100vh; }
+.auth-container {
+  position: fixed; inset: 0; background: rgba(246,248,251,0.95);
+  display:flex; justify-content:center; align-items:center; z-index:100;
+}
+.auth-card { background:var(--card); padding:28px; border-radius:16px; box-shadow:var(--shadow); width:320px; display:flex; flex-direction:column; gap:12px; }
+.auth-card input { padding:10px 12px; border-radius:10px; border:1px solid #e6eef2; width:100%; outline:none; }
+
 
 /* Sidebar */
 .sidebar {
