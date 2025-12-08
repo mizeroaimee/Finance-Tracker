@@ -1,66 +1,10 @@
-/***********************************************
- * app.js - Integrated (Dashboard + Transactions)
- ***********************************************/
-
-
+/************************************************
+ * app.js - Finance Tracker with Authentication
+ ************************************************/
 
 /* -------------------------
-   1) Basic DOM selectors & helpers
+   Firebase Configuration
    ------------------------- */
-const navItems = document.querySelectorAll('.nav-item a');
-const viewContent = document.getElementById('view-content');
-
-const totalBalanceEl = document.getElementById('total-balance');
-const monthlyIncomeEl = document.getElementById('monthly-income');
-const monthlyExpenseEl = document.getElementById('monthly-expenses');
-
-const recentContainer = document.getElementById('recent-transactions-list');
-
-const transactionListEl = document.getElementById('transaction-list');
-const txTotalIncomeEl = document.getElementById('tx-total-income');
-const txTotalExpenseEl = document.getElementById('tx-total-expense');
-const txNetBalanceEl = document.getElementById('tx-net-balance');
-
-const searchInput = document.getElementById('searchInput');
-const filterType = document.getElementById('filterType');
-const filterCategory = document.getElementById('filterCategory');
-const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-
-const addTransactionBtn = document.getElementById('addTransactionBtn');
-const viewAllBtn = document.getElementById('viewAllBtn');
-
-/* Modal elements */
-const modalOverlay = document.getElementById('modalOverlay');
-const modalTitle = document.getElementById('modalTitle');
-const modalCancel = document.getElementById('modalCancel');
-const modalSave = document.getElementById('modalSave');
-
-const txTitle = document.getElementById('txTitle');
-const txAmount = document.getElementById('txAmount');
-const txType = document.getElementById('txType');
-const txCategory = document.getElementById('txCategory');
-const txDate = document.getElementById('txDate');
-const txDescription = document.getElementById('txDescription');
-
-let editingTransactionId = null;
-let allCategories = [
-  'Salary','Food','Transport','Shopping','Entertainment','Bills','Health','Other'
-];
-
-/* Currency formatter */
-const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-
-/* Utility to convert Firestore Timestamp or string to JS Date */
-function toDateObject(dateVal) {
-  if (!dateVal) return new Date();
-  if (dateVal.toDate && typeof dateVal.toDate === 'function') return dateVal.toDate();
-  return new Date(dateVal);
-}
-
-/* -------------------------
-   2) Firebase Initialization
-   ------------------------- */
-// REPLACE with your project's config if different
 const firebaseConfig = {
   apiKey: "AIzaSyBsgJAuSeZPhmFmriHyZ18pm4iE551lqww",
   authDomain: "finance-tracker-36ba4.firebaseapp.com",
@@ -72,30 +16,363 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 
 /* -------------------------
-   3) View switching
+   Global Variables
+   ------------------------- */
+let currentUser = null;
+let liveTransactions = [];
+let allTransactionsForUI = [];
+let editingTransactionId = null;
+let balanceChartInstance = null;
+
+const allCategories = [
+  'Salary','Food','Transport','Shopping','Entertainment','Bills','Health','Other'
+];
+
+const currencyFormatter = new Intl.NumberFormat('en-US', { 
+  style: 'currency', 
+  currency: 'USD' 
+});
+
+/* -------------------------
+   DOM Elements
+   ------------------------- */
+// Auth elements
+const authContainer = document.getElementById('authContainer');
+const mainApp = document.getElementById('mainApp');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const authError = document.getElementById('authError');
+
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const loginBtn = document.getElementById('loginBtn');
+const showRegisterLink = document.getElementById('showRegisterLink');
+
+const registerName = document.getElementById('registerName');
+const registerEmail = document.getElementById('registerEmail');
+const registerPassword = document.getElementById('registerPassword');
+const registerBtn = document.getElementById('registerBtn');
+const showLoginLink = document.getElementById('showLoginLink');
+
+// Main app elements
+const navItems = document.querySelectorAll('.nav-item a');
+const viewContent = document.getElementById('view-content');
+const signOutBtn = document.getElementById('signOutBtn');
+const userProfileBtn = document.getElementById('userProfileBtn');
+
+const userName = document.getElementById('userName');
+const userEmail = document.getElementById('userEmail');
+const userAvatar = document.getElementById('userAvatar');
+
+// Dashboard elements
+const totalBalanceEl = document.getElementById('total-balance');
+const monthlyIncomeEl = document.getElementById('monthly-income');
+const monthlyExpenseEl = document.getElementById('monthly-expenses');
+const recentContainer = document.getElementById('recent-transactions-list');
+const viewAllBtn = document.getElementById('viewAllBtn');
+
+// Transactions elements
+const transactionListEl = document.getElementById('transaction-list');
+const txTotalIncomeEl = document.getElementById('tx-total-income');
+const txTotalExpenseEl = document.getElementById('tx-total-expense');
+const txNetBalanceEl = document.getElementById('tx-net-balance');
+const searchInput = document.getElementById('searchInput');
+const filterType = document.getElementById('filterType');
+const filterCategory = document.getElementById('filterCategory');
+const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+const addTransactionBtn = document.getElementById('addTransactionBtn');
+
+// Profile elements
+const profileName = document.getElementById('profileName');
+const profileEmail = document.getElementById('profileEmail');
+const updateProfileBtn = document.getElementById('updateProfileBtn');
+const newPassword = document.getElementById('newPassword');
+const changePasswordBtn = document.getElementById('changePasswordBtn');
+
+// Modal elements
+const modalOverlay = document.getElementById('modalOverlay');
+const modalTitle = document.getElementById('modalTitle');
+const modalCancel = document.getElementById('modalCancel');
+const modalSave = document.getElementById('modalSave');
+const txTitle = document.getElementById('txTitle');
+const txAmount = document.getElementById('txAmount');
+const txType = document.getElementById('txType');
+const txCategory = document.getElementById('txCategory');
+const txDate = document.getElementById('txDate');
+const txDescription = document.getElementById('txDescription');
+
+/* -------------------------
+   Utility Functions
+   ------------------------- */
+function toDateObject(dateVal) {
+  if (!dateVal) return new Date();
+  if (dateVal.toDate && typeof dateVal.toDate === 'function') return dateVal.toDate();
+  return new Date(dateVal);
+}
+
+function showAuthError(message) {
+  authError.textContent = message;
+  authError.style.display = 'block';
+  setTimeout(() => {
+    authError.style.display = 'none';
+  }, 5000);
+}
+
+function showNotification(message, type = 'success') {
+  // Simple notification (you can enhance this)
+  alert(message);
+}
+
+/* -------------------------
+   Authentication Functions
+   ------------------------- */
+
+// Toggle between login and register forms
+showRegisterLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  loginForm.style.display = 'none';
+  registerForm.style.display = 'block';
+  authError.style.display = 'none';
+});
+
+showLoginLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  registerForm.style.display = 'none';
+  loginForm.style.display = 'block';
+  authError.style.display = 'none';
+});
+
+// Login
+loginBtn.addEventListener('click', async () => {
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value;
+
+  if (!email || !password) {
+    showAuthError('Please enter email and password');
+    return;
+  }
+
+  try {
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Signing in...';
+    await auth.signInWithEmailAndPassword(email, password);
+    // User will be handled by onAuthStateChanged
+  } catch (error) {
+    console.error('Login error:', error);
+    showAuthError(getAuthErrorMessage(error.code));
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Sign In';
+  }
+});
+
+// Register
+registerBtn.addEventListener('click', async () => {
+  const name = registerName.value.trim();
+  const email = registerEmail.value.trim();
+  const password = registerPassword.value;
+
+  if (!name || !email || !password) {
+    showAuthError('Please fill in all fields');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAuthError('Password must be at least 6 characters');
+    return;
+  }
+
+  try {
+    registerBtn.disabled = true;
+    registerBtn.textContent = 'Creating account...';
+    
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    
+    // Update profile with display name
+    await userCredential.user.updateProfile({
+      displayName: name
+    });
+
+    // Create user document in Firestore
+    await db.collection('users').doc(userCredential.user.uid).set({
+      displayName: name,
+      email: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // User will be handled by onAuthStateChanged
+  } catch (error) {
+    console.error('Registration error:', error);
+    showAuthError(getAuthErrorMessage(error.code));
+    registerBtn.disabled = false;
+    registerBtn.textContent = 'Create Account';
+  }
+});
+
+// Sign out
+signOutBtn.addEventListener('click', async () => {
+  try {
+    await auth.signOut();
+    // Will be handled by onAuthStateChanged
+  } catch (error) {
+    console.error('Sign out error:', error);
+    showNotification('Failed to sign out', 'error');
+  }
+});
+
+// Auth error message helper
+function getAuthErrorMessage(errorCode) {
+  const errorMessages = {
+    'auth/email-already-in-use': 'This email is already registered',
+    'auth/invalid-email': 'Invalid email address',
+    'auth/user-not-found': 'No account found with this email',
+    'auth/wrong-password': 'Incorrect password',
+    'auth/weak-password': 'Password should be at least 6 characters',
+    'auth/too-many-requests': 'Too many attempts. Please try again later'
+  };
+  return errorMessages[errorCode] || 'An error occurred. Please try again';
+}
+
+// Auth state observer
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    // User is signed in
+    currentUser = user;
+    authContainer.style.display = 'none';
+    mainApp.style.display = 'flex';
+    
+    // Update UI with user info
+    updateUserProfile(user);
+    
+    // Initialize app data
+    initFirestoreListeners();
+    
+  } else {
+    // User is signed out
+    currentUser = null;
+    mainApp.style.display = 'none';
+    authContainer.style.display = 'flex';
+    
+    // Reset forms
+    loginEmail.value = '';
+    loginPassword.value = '';
+    registerName.value = '';
+    registerEmail.value = '';
+    registerPassword.value = '';
+    loginBtn.disabled = false;
+    registerBtn.disabled = false;
+    loginBtn.textContent = 'Sign In';
+    registerBtn.textContent = 'Create Account';
+  }
+});
+
+// Update user profile display
+function updateUserProfile(user) {
+  const displayName = user.displayName || 'User';
+  const email = user.email || '';
+  
+  userName.textContent = displayName;
+  userEmail.textContent = email;
+  
+  // Update avatar with first letter of name
+  const initial = displayName.charAt(0).toUpperCase();
+  userAvatar.innerHTML = initial;
+  
+  // Update profile settings fields
+  if (profileName) profileName.value = displayName;
+  if (profileEmail) profileEmail.value = email;
+}
+
+// Profile button click - navigate to settings
+userProfileBtn.addEventListener('click', () => {
+  switchView('settings');
+});
+
+// Update profile
+updateProfileBtn.addEventListener('click', async () => {
+  const newName = profileName.value.trim();
+  
+  if (!newName) {
+    showNotification('Please enter a name', 'error');
+    return;
+  }
+
+  try {
+    updateProfileBtn.disabled = true;
+    updateProfileBtn.textContent = 'Updating...';
+    
+    await currentUser.updateProfile({
+      displayName: newName
+    });
+
+    // Update Firestore
+    await db.collection('users').doc(currentUser.uid).update({
+      displayName: newName,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    updateUserProfile(currentUser);
+    showNotification('Profile updated successfully');
+    
+  } catch (error) {
+    console.error('Profile update error:', error);
+    showNotification('Failed to update profile', 'error');
+  } finally {
+    updateProfileBtn.disabled = false;
+    updateProfileBtn.textContent = 'Update Profile';
+  }
+});
+
+// Change password
+changePasswordBtn.addEventListener('click', async () => {
+  const password = newPassword.value;
+  
+  if (!password || password.length < 6) {
+    showNotification('Password must be at least 6 characters', 'error');
+    return;
+  }
+
+  try {
+    changePasswordBtn.disabled = true;
+    changePasswordBtn.textContent = 'Changing...';
+    
+    await currentUser.updatePassword(password);
+    
+    newPassword.value = '';
+    showNotification('Password changed successfully');
+    
+  } catch (error) {
+    console.error('Password change error:', error);
+    if (error.code === 'auth/requires-recent-login') {
+      showNotification('Please sign out and sign in again to change your password', 'error');
+    } else {
+      showNotification('Failed to change password', 'error');
+    }
+  } finally {
+    changePasswordBtn.disabled = false;
+    changePasswordBtn.textContent = 'Change Password';
+  }
+});
+
+/* -------------------------
+   View Switching
    ------------------------- */
 function switchView(viewName) {
-  // hide others
   viewContent.querySelectorAll('.view').forEach(v => v.classList.add('view-hidden'));
   const target = document.getElementById(`${viewName}-view`);
   if (target) target.classList.remove('view-hidden');
 
-  // nav active
   navItems.forEach(item => {
     item.parentElement.classList.remove('active');
-    if (item.getAttribute('data-view') === viewName) item.parentElement.classList.add('active');
+    if (item.getAttribute('data-view') === viewName) {
+      item.parentElement.classList.add('active');
+    }
   });
 
-  document.querySelector('.main-header h1').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
-
-  // Load content for certain views
-  if (viewName === 'transactions') {
-    // list is updated in real-time from Firestore listener
-  } else if (viewName === 'dashboard') {
-    // dashboard data comes from the same listener too
-  }
+  document.querySelector('.main-header h1').textContent = 
+    viewName.charAt(0).toUpperCase() + viewName.slice(1);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -106,21 +383,107 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // initial
   switchView('dashboard');
-
-  // Populate category selects
-  loadCategoriesToFilter(allCategories);
   populateTxCategorySelect();
-
-  // Start Firestore listeners
-  initFirestoreListeners();
+  loadCategoriesToFilter(allCategories);
 });
 
 /* -------------------------
-   4) Chart (Filled Line)
+   Firestore Listeners
    ------------------------- */
-let balanceChartInstance = null;
+function initFirestoreListeners() {
+  if (!currentUser) return;
+
+  // Listen to user's transactions
+  db.collection("transactions")
+    .where('userId', '==', currentUser.uid)
+    .orderBy('date', 'asc')
+    .onSnapshot(snapshot => {
+      const txs = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        data.id = doc.id;
+        txs.push(data);
+      });
+
+      liveTransactions = txs;
+      updateDashboardFromTransactions(liveTransactions);
+      updateTransactionListView(liveTransactions);
+      updateRecentTransactions(liveTransactions);
+      updateCategoryFilterOptions(liveTransactions);
+    }, err => {
+      console.error("Firestore listener error:", err);
+      liveTransactions = [];
+      updateDashboardFromTransactions([]);
+      updateTransactionListView([]);
+      updateRecentTransactions([]);
+    });
+}
+
+/* -------------------------
+   Dashboard Updates
+   ------------------------- */
+function updateDashboardFromTransactions(transactions) {
+  if (!transactions || transactions.length === 0) {
+    totalBalanceEl.textContent = currencyFormatter.format(0);
+    monthlyIncomeEl.textContent = currencyFormatter.format(0);
+    monthlyExpenseEl.textContent = currencyFormatter.format(0);
+    renderBalanceChart([0], ['Today']);
+    return;
+  }
+
+  let totalBalance = 0;
+  let monthlyIncome = 0;
+  let monthlyExpense = 0;
+
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+
+  const chartPoints = [];
+  const chartLabels = [];
+  let computedBalances = [];
+
+  let acc = 0;
+  transactions.forEach(tx => {
+    const amt = Number(tx.amount) || 0;
+    if (tx.type === 'Credit') acc += Math.abs(amt);
+    else acc -= Math.abs(amt);
+    computedBalances.push(acc);
+  });
+
+  const lastN = 7;
+  const totalLen = transactions.length;
+  const startIndex = Math.max(0, totalLen - lastN);
+  
+  for (let i = startIndex; i < totalLen; i++) {
+    const tx = transactions[i];
+    const date = toDateObject(tx.date);
+    chartLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    chartPoints.push(computedBalances[i]);
+  }
+
+  const lastBalance = computedBalances.length ? computedBalances[computedBalances.length - 1] : 0;
+  chartLabels.push('Today');
+  chartPoints.push(lastBalance);
+
+  transactions.forEach(tx => {
+    const date = toDateObject(tx.date);
+    if (tx.type === 'Credit') totalBalance += Number(tx.amount || 0);
+    else totalBalance -= Number(tx.amount || 0);
+
+    if (date.getMonth() === thisMonth && date.getFullYear() === thisYear) {
+      if (tx.type === 'Credit') monthlyIncome += Number(tx.amount || 0);
+      else monthlyExpense += Math.abs(Number(tx.amount || 0));
+    }
+  });
+
+  totalBalanceEl.textContent = currencyFormatter.format(lastBalance || 0);
+  monthlyIncomeEl.textContent = currencyFormatter.format(monthlyIncome);
+  monthlyExpenseEl.textContent = currencyFormatter.format(monthlyExpense);
+
+  renderBalanceChart(chartPoints.map(n => Number(n || 0)), chartLabels);
+}
 
 function renderBalanceChart(chartDataPoints, chartLabels) {
   const ctx = document.getElementById('balance-trend-chart').getContext('2d');
@@ -158,127 +521,6 @@ function renderBalanceChart(chartDataPoints, chartLabels) {
   });
 }
 
-/* -------------------------
-   5) Firestore listeners & data binding
-   ------------------------- */
-
-let liveTransactions = []; // cached transactions
-
-function initFirestoreListeners() {
-  // Real-time listener for transactions collection
-  db.collection("transactions").orderBy('date', 'asc').onSnapshot(snapshot => {
-    const txs = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      data.id = doc.id;
-      txs.push(data);
-    });
-
-    // store ascending order (oldest -> newest)
-    liveTransactions = txs;
-    // Update UI components
-    updateDashboardFromTransactions(liveTransactions);
-    updateTransactionListView(liveTransactions);
-    updateRecentTransactions(liveTransactions);
-    updateCategoryFilterOptions(liveTransactions);
-  }, err => {
-    console.error("Firestore listener error:", err);
-    // Fallback: if error, we keep using an empty list
-    liveTransactions = [];
-    updateDashboardFromTransactions([]);
-    updateTransactionListView([]);
-    updateRecentTransactions([]);
-  });
-}
-
-/* Update dashboard calculations and chart */
-function updateDashboardFromTransactions(transactions) {
-  // If no transactions, show zeros
-  if (!transactions || transactions.length === 0) {
-    totalBalanceEl.textContent = currencyFormatter.format(0);
-    monthlyIncomeEl.textContent = currencyFormatter.format(0);
-    monthlyExpenseEl.textContent = currencyFormatter.format(0);
-    renderBalanceChart([0], ['Today']);
-    return;
-  }
-
-  // Compute totals
-  let totalBalance = 0;
-  let monthlyIncome = 0;
-  let monthlyExpense = 0;
-
-  const now = new Date();
-  const thisMonth = now.getMonth();
-  const thisYear = now.getFullYear();
-
-  // For chart: take last up to 7 balance points (we will derive a running balance)
-  const chartPoints = [];
-  const chartLabels = [];
-
-  // We need running balance. If transactions have a `balance` field use it; if not, compute.
-  // Try to use the last known balance as starting point if present.
-  // We'll compute an array of balances in order.
-  let computedBalances = [];
-  let knownBalanceAtEnd = null;
-  transactions.forEach(tx => {
-    const date = toDateObject(tx.date);
-    if (typeof tx.balance === 'number') knownBalanceAtEnd = tx.balance;
-  });
-
-  // If balance fields exist, use them. Otherwise compute by summing credits and debits.
-  if (knownBalanceAtEnd !== null) {
-    computedBalances = transactions.map(tx => tx.balance || 0);
-  } else {
-    // use incremental sum starting from 0 then accumulate
-    let acc = 0;
-    transactions.forEach(tx => {
-      const amt = Number(tx.amount) || 0;
-      if (tx.type === 'Credit') acc += Math.abs(amt);
-      else acc -= Math.abs(amt);
-      computedBalances.push(acc);
-    });
-  }
-
-  // Chart: pick up to last 7 points
-  const lastN = 7;
-  const totalLen = transactions.length;
-  const startIndex = Math.max(0, totalLen - lastN);
-  for (let i = startIndex; i < totalLen; i++) {
-    const tx = transactions[i];
-    const date = toDateObject(tx.date);
-    chartLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-    chartPoints.push(computedBalances[i]);
-  }
-  // append Today point using last computed balance (or 0)
-  const lastBalance = computedBalances.length ? computedBalances[computedBalances.length - 1] : 0;
-  chartLabels.push('Today');
-  chartPoints.push(lastBalance);
-
-  // Totals (monthly)
-  transactions.forEach(tx => {
-    const date = toDateObject(tx.date);
-    // totals for ledger
-    if (tx.type === 'Credit') totalBalance += Number(tx.amount || 0);
-    else totalBalance -= Number(tx.amount || 0);
-
-    if (date.getMonth() === thisMonth && date.getFullYear() === thisYear) {
-      if (tx.type === 'Credit') monthlyIncome += Number(tx.amount || 0);
-      else monthlyExpense += Math.abs(Number(tx.amount || 0));
-    }
-  });
-
-  // Display (ensure positive display of total balance as end balance)
-  totalBalanceEl.textContent = currencyFormatter.format(lastBalance || 0);
-  monthlyIncomeEl.textContent = currencyFormatter.format(monthlyIncome);
-  monthlyExpenseEl.textContent = currencyFormatter.format(monthlyExpense);
-
-  // Render chart with values (ensure numbers)
-  renderBalanceChart(chartPoints.map(n => Number(n || 0)), chartLabels);
-}
-
-/* -------------------------
-   6) Recent transactions for dashboard
-   ------------------------- */
 function updateRecentTransactions(transactions) {
   const container = recentContainer;
   container.innerHTML = '';
@@ -327,10 +569,9 @@ function updateRecentTransactions(transactions) {
 }
 
 /* -------------------------
-   7) Transaction list view + filters
+   Transaction List & Filters
    ------------------------- */
 function updateTransactionListView(transactions) {
-  // Render based on current filters
   allTransactionsForUI = transactions.map(tx => ({
     id: tx.id,
     title: tx.description || tx.title || 'Transaction',
@@ -343,9 +584,6 @@ function updateTransactionListView(transactions) {
   applyFiltersAndRender();
 }
 
-let allTransactionsForUI = [];
-
-// Render the transaction cards
 function renderTransactions(list) {
   transactionListEl.innerHTML = '';
   if (!list || list.length === 0) {
@@ -356,7 +594,6 @@ function renderTransactions(list) {
     return;
   }
 
-  // Calculate totals for summary
   let income = 0, expense = 0;
   list.slice().reverse().forEach(t => {
     if (t.type === 'Credit') income += Math.abs(Number(t.amount || 0));
@@ -367,7 +604,6 @@ function renderTransactions(list) {
   txTotalExpenseEl.textContent = currencyFormatter.format(expense);
   txNetBalanceEl.textContent = currencyFormatter.format(income - expense);
 
-  // Render cards
   let html = '';
   list.slice().reverse().forEach(t => {
     const date = t.date instanceof Date ? t.date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : String(t.date);
@@ -395,7 +631,6 @@ function renderTransactions(list) {
   transactionListEl.innerHTML = html;
 }
 
-/* Filtering logic */
 function applyFiltersAndRender() {
   const search = (searchInput.value || '').toLowerCase();
   const type = filterType.value;
@@ -411,7 +646,6 @@ function applyFiltersAndRender() {
   renderTransactions(filtered);
 }
 
-/* Attach filter inputs */
 searchInput.addEventListener('input', applyFiltersAndRender);
 filterType.addEventListener('change', applyFiltersAndRender);
 filterCategory.addEventListener('change', applyFiltersAndRender);
@@ -422,9 +656,7 @@ clearFiltersBtn.addEventListener('click', () => {
   applyFiltersAndRender();
 });
 
-/* Load categories into category select */
 function loadCategoriesToFilter(categories) {
-  // keep 'all' option
   filterCategory.innerHTML = '<option value="all">All Categories</option>';
   categories.forEach(cat => {
     const opt = document.createElement('option');
@@ -434,7 +666,6 @@ function loadCategoriesToFilter(categories) {
   });
 }
 
-/* Dynamically update categories based on transactions */
 function updateCategoryFilterOptions(transactions) {
   const cats = new Set(allCategories);
   transactions.forEach(tx => { if (tx.category) cats.add(tx.category); });
@@ -442,7 +673,6 @@ function updateCategoryFilterOptions(transactions) {
   populateTxCategorySelect(Array.from(cats).sort());
 }
 
-/* populate add/edit modal category select */
 function populateTxCategorySelect(categories) {
   const cats = categories || allCategories;
   txCategory.innerHTML = '';
@@ -455,14 +685,11 @@ function populateTxCategorySelect(categories) {
 }
 
 /* -------------------------
-   8) Add / Edit / Delete transactions
+   Transaction CRUD
    ------------------------- */
-
 addTransactionBtn.addEventListener('click', () => openAddTransaction());
-
 viewAllBtn && viewAllBtn.addEventListener('click', () => switchView('transactions'));
 
-// Open Add modal
 function openAddTransaction() {
   editingTransactionId = null;
   modalTitle.textContent = 'Add Transaction';
@@ -475,10 +702,8 @@ function openAddTransaction() {
   showModal();
 }
 
-// Open Edit modal
 window.openEditTransaction = function(id) {
   editingTransactionId = id;
-  // Fetch doc from firestore for full details
   db.collection('transactions').doc(id).get().then(doc => {
     if (!doc.exists) return alert('Transaction not found.');
     const data = doc.data();
@@ -506,8 +731,9 @@ modalCancel.addEventListener('click', () => {
   editingTransactionId = null;
 });
 
-// Save (add or update)
 modalSave.addEventListener('click', () => {
+  if (!currentUser) return;
+
   const title = txTitle.value.trim();
   const amount = Number(txAmount.value || 0);
   const type = txType.value;
@@ -520,6 +746,7 @@ modalSave.addEventListener('click', () => {
   }
 
   const payload = {
+    userId: currentUser.uid,
     description: title,
     amount: Math.abs(amount),
     type: type,
@@ -533,44 +760,31 @@ modalSave.addEventListener('click', () => {
       modalOverlay.classList.add('hidden');
       editingTransactionId = null;
     }).catch(err => {
-      console.error(err); alert('Failed to update transaction.');
+      console.error(err);
+      alert('Failed to update transaction.');
     });
   } else {
-    // create new
     payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     db.collection('transactions').add(payload).then(() => {
       modalOverlay.classList.add('hidden');
     }).catch(err => {
-      console.error(err); alert('Failed to add transaction.');
+      console.error(err);
+      alert('Failed to add transaction.');
     });
   }
 });
 
-// Delete
 window.deleteTransaction = function(id) {
   if (!confirm('Delete this transaction?')) return;
   db.collection('transactions').doc(id).delete().catch(err => {
-    console.error(err); alert('Failed to delete.');
+    console.error(err);
+    alert('Failed to delete.');
   });
 };
 
 /* -------------------------
-   9) Misc: sign out (placeholder)
+   Keyboard Shortcuts
    ------------------------- */
-const signOutBtn = document.getElementById('signOutBtn');
-if (signOutBtn) signOutBtn.addEventListener('click', () => {
-  // If using firebase auth, sign out:
-  if (firebase.auth) {
-    firebase.auth().signOut().then(() => location.reload());
-  } else {
-    alert('Sign out not configured.');
-  }
-});
-
-/* -------------------------
-   10) Small UX helpers
-   ------------------------- */
-// Close modal with ESC
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') modalOverlay.classList.add('hidden');
 });
