@@ -1,5 +1,6 @@
 /************************************************
  * app.js - Finance Tracker with Authentication
+ * COMPLETE & FIXED VERSION
  ************************************************/
 
 /* -------------------------
@@ -24,11 +25,22 @@ const auth = firebase.auth();
 let currentUser = null;
 let liveTransactions = [];
 let allTransactionsForUI = [];
+let userCategories = [];
 let editingTransactionId = null;
+let editingCategoryId = null;
 let balanceChartInstance = null;
+let categoryChartInstance = null;
+let incomeExpenseChartInstance = null;
 
-const allCategories = [
-  'Salary','Food','Transport','Shopping','Entertainment','Bills','Health','Other'
+const defaultCategories = [
+  { name: 'Salary', icon: 'fa-money-check-alt', type: 'income' },
+  { name: 'Food', icon: 'fa-utensils', type: 'expense' },
+  { name: 'Transport', icon: 'fa-car', type: 'expense' },
+  { name: 'Shopping', icon: 'fa-shopping-cart', type: 'expense' },
+  { name: 'Entertainment', icon: 'fa-tv', type: 'expense' },
+  { name: 'Bills', icon: 'fa-file-invoice-dollar', type: 'expense' },
+  { name: 'Health', icon: 'fa-heartbeat', type: 'expense' },
+  { name: 'Other', icon: 'fa-wallet', type: 'both' }
 ];
 
 const currencyFormatter = new Intl.NumberFormat('en-US', { 
@@ -39,7 +51,6 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 /* -------------------------
    DOM Elements
    ------------------------- */
-// Auth elements
 const authContainer = document.getElementById('authContainer');
 const mainApp = document.getElementById('mainApp');
 const loginForm = document.getElementById('loginForm');
@@ -57,7 +68,6 @@ const registerPassword = document.getElementById('registerPassword');
 const registerBtn = document.getElementById('registerBtn');
 const showLoginLink = document.getElementById('showLoginLink');
 
-// Main app elements
 const navItems = document.querySelectorAll('.nav-item a');
 const viewContent = document.getElementById('view-content');
 const signOutBtn = document.getElementById('signOutBtn');
@@ -67,14 +77,17 @@ const userName = document.getElementById('userName');
 const userEmail = document.getElementById('userEmail');
 const userAvatar = document.getElementById('userAvatar');
 
-// Dashboard elements
+const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const closeSidebar = document.getElementById('closeSidebar');
+
 const totalBalanceEl = document.getElementById('total-balance');
 const monthlyIncomeEl = document.getElementById('monthly-income');
 const monthlyExpenseEl = document.getElementById('monthly-expenses');
 const recentContainer = document.getElementById('recent-transactions-list');
 const viewAllBtn = document.getElementById('viewAllBtn');
 
-// Transactions elements
 const transactionListEl = document.getElementById('transaction-list');
 const txTotalIncomeEl = document.getElementById('tx-total-income');
 const txTotalExpenseEl = document.getElementById('tx-total-expense');
@@ -85,14 +98,22 @@ const filterCategory = document.getElementById('filterCategory');
 const clearFiltersBtn = document.getElementById('clearFiltersBtn');
 const addTransactionBtn = document.getElementById('addTransactionBtn');
 
-// Profile elements
+const categoriesList = document.getElementById('categoriesList');
+const addCategoryBtn = document.getElementById('addCategoryBtn');
+
+const analyticsPeriod = document.getElementById('analyticsPeriod');
+const analyticsTotalIncome = document.getElementById('analytics-total-income');
+const analyticsTotalExpenses = document.getElementById('analytics-total-expenses');
+const analyticsNetSavings = document.getElementById('analytics-net-savings');
+const analyticsSavingsRate = document.getElementById('analytics-savings-rate');
+const topCategoriesList = document.getElementById('top-categories-list');
+
 const profileName = document.getElementById('profileName');
 const profileEmail = document.getElementById('profileEmail');
 const updateProfileBtn = document.getElementById('updateProfileBtn');
 const newPassword = document.getElementById('newPassword');
 const changePasswordBtn = document.getElementById('changePasswordBtn');
 
-// Modal elements
 const modalOverlay = document.getElementById('modalOverlay');
 const modalTitle = document.getElementById('modalTitle');
 const modalCancel = document.getElementById('modalCancel');
@@ -103,6 +124,32 @@ const txType = document.getElementById('txType');
 const txCategory = document.getElementById('txCategory');
 const txDate = document.getElementById('txDate');
 const txDescription = document.getElementById('txDescription');
+
+const categoryModalOverlay = document.getElementById('categoryModalOverlay');
+const categoryModalTitle = document.getElementById('categoryModalTitle');
+const categoryModalCancel = document.getElementById('categoryModalCancel');
+const categoryModalSave = document.getElementById('categoryModalSave');
+const categoryName = document.getElementById('categoryName');
+const categoryIcon = document.getElementById('categoryIcon');
+const categoryType = document.getElementById('categoryType');
+
+/* -------------------------
+   Mobile Menu
+   ------------------------- */
+mobileMenuToggle.addEventListener('click', () => {
+  sidebar.classList.add('sidebar-open');
+  sidebarOverlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+});
+
+closeSidebar.addEventListener('click', closeMobileMenu);
+sidebarOverlay.addEventListener('click', closeMobileMenu);
+
+function closeMobileMenu() {
+  sidebar.classList.remove('sidebar-open');
+  sidebarOverlay.classList.remove('show');
+  document.body.style.overflow = '';
+}
 
 /* -------------------------
    Utility Functions
@@ -121,16 +168,13 @@ function showAuthError(message) {
   }, 5000);
 }
 
-function showNotification(message, type = 'success') {
-  // Simple notification (you can enhance this)
+function showNotification(message) {
   alert(message);
 }
 
 /* -------------------------
-   Authentication Functions
+   Authentication
    ------------------------- */
-
-// Toggle between login and register forms
 showRegisterLink.addEventListener('click', (e) => {
   e.preventDefault();
   loginForm.style.display = 'none';
@@ -145,7 +189,6 @@ showLoginLink.addEventListener('click', (e) => {
   authError.style.display = 'none';
 });
 
-// Login
 loginBtn.addEventListener('click', async () => {
   const email = loginEmail.value.trim();
   const password = loginPassword.value;
@@ -159,7 +202,6 @@ loginBtn.addEventListener('click', async () => {
     loginBtn.disabled = true;
     loginBtn.textContent = 'Signing in...';
     await auth.signInWithEmailAndPassword(email, password);
-    // User will be handled by onAuthStateChanged
   } catch (error) {
     console.error('Login error:', error);
     showAuthError(getAuthErrorMessage(error.code));
@@ -168,7 +210,6 @@ loginBtn.addEventListener('click', async () => {
   }
 });
 
-// Register
 registerBtn.addEventListener('click', async () => {
   const name = registerName.value.trim();
   const email = registerEmail.value.trim();
@@ -190,19 +231,43 @@ registerBtn.addEventListener('click', async () => {
     
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
     
-    // Update profile with display name
     await userCredential.user.updateProfile({
       displayName: name
     });
 
-    // Create user document in Firestore
     await db.collection('users').doc(userCredential.user.uid).set({
       displayName: name,
       email: email,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // User will be handled by onAuthStateChanged
+    // Create default categories
+    const batch = db.batch();
+    defaultCategories.forEach(cat => {
+      const ref = db.collection('categories').doc();
+      batch.set(ref, {
+        userId: userCredential.user.uid,
+        name: cat.name,
+        icon: cat.icon,
+        type: cat.type,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+
+    // Sign out immediately after registration
+    await auth.signOut();
+    
+    // Show success message and return to login
+    showAuthError('Account created successfully! Please sign in.');
+    registerForm.style.display = 'none';
+    loginForm.style.display = 'block';
+    registerName.value = '';
+    registerEmail.value = '';
+    registerPassword.value = '';
+    registerBtn.disabled = false;
+    registerBtn.textContent = 'Create Account';
+
   } catch (error) {
     console.error('Registration error:', error);
     showAuthError(getAuthErrorMessage(error.code));
@@ -211,18 +276,15 @@ registerBtn.addEventListener('click', async () => {
   }
 });
 
-// Sign out
 signOutBtn.addEventListener('click', async () => {
   try {
     await auth.signOut();
-    // Will be handled by onAuthStateChanged
   } catch (error) {
     console.error('Sign out error:', error);
-    showNotification('Failed to sign out', 'error');
+    showNotification('Failed to sign out');
   }
 });
 
-// Auth error message helper
 function getAuthErrorMessage(errorCode) {
   const errorMessages = {
     'auth/email-already-in-use': 'This email is already registered',
@@ -235,40 +297,27 @@ function getAuthErrorMessage(errorCode) {
   return errorMessages[errorCode] || 'An error occurred. Please try again';
 }
 
-// Auth state observer
 auth.onAuthStateChanged(async (user) => {
   if (user) {
-    // User is signed in
     currentUser = user;
     authContainer.style.display = 'none';
     mainApp.style.display = 'flex';
     
-    // Update UI with user info
     updateUserProfile(user);
-    
-    // Initialize app data
     initFirestoreListeners();
     
   } else {
-    // User is signed out
     currentUser = null;
     mainApp.style.display = 'none';
     authContainer.style.display = 'flex';
     
-    // Reset forms
     loginEmail.value = '';
     loginPassword.value = '';
-    registerName.value = '';
-    registerEmail.value = '';
-    registerPassword.value = '';
     loginBtn.disabled = false;
-    registerBtn.disabled = false;
     loginBtn.textContent = 'Sign In';
-    registerBtn.textContent = 'Create Account';
   }
 });
 
-// Update user profile display
 function updateUserProfile(user) {
   const displayName = user.displayName || 'User';
   const email = user.email || '';
@@ -276,26 +325,22 @@ function updateUserProfile(user) {
   userName.textContent = displayName;
   userEmail.textContent = email;
   
-  // Update avatar with first letter of name
   const initial = displayName.charAt(0).toUpperCase();
   userAvatar.innerHTML = initial;
   
-  // Update profile settings fields
   if (profileName) profileName.value = displayName;
   if (profileEmail) profileEmail.value = email;
 }
 
-// Profile button click - navigate to settings
 userProfileBtn.addEventListener('click', () => {
   switchView('settings');
 });
 
-// Update profile
 updateProfileBtn.addEventListener('click', async () => {
   const newName = profileName.value.trim();
   
   if (!newName) {
-    showNotification('Please enter a name', 'error');
+    showNotification('Please enter a name');
     return;
   }
 
@@ -307,7 +352,6 @@ updateProfileBtn.addEventListener('click', async () => {
       displayName: newName
     });
 
-    // Update Firestore
     await db.collection('users').doc(currentUser.uid).update({
       displayName: newName,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -318,19 +362,18 @@ updateProfileBtn.addEventListener('click', async () => {
     
   } catch (error) {
     console.error('Profile update error:', error);
-    showNotification('Failed to update profile', 'error');
+    showNotification('Failed to update profile');
   } finally {
     updateProfileBtn.disabled = false;
     updateProfileBtn.textContent = 'Update Profile';
   }
 });
 
-// Change password
 changePasswordBtn.addEventListener('click', async () => {
   const password = newPassword.value;
   
   if (!password || password.length < 6) {
-    showNotification('Password must be at least 6 characters', 'error');
+    showNotification('Password must be at least 6 characters');
     return;
   }
 
@@ -346,9 +389,9 @@ changePasswordBtn.addEventListener('click', async () => {
   } catch (error) {
     console.error('Password change error:', error);
     if (error.code === 'auth/requires-recent-login') {
-      showNotification('Please sign out and sign in again to change your password', 'error');
+      showNotification('Please sign out and sign in again to change your password');
     } else {
-      showNotification('Failed to change password', 'error');
+      showNotification('Failed to change password');
     }
   } finally {
     changePasswordBtn.disabled = false;
@@ -373,6 +416,16 @@ function switchView(viewName) {
 
   document.querySelector('.main-header h1').textContent = 
     viewName.charAt(0).toUpperCase() + viewName.slice(1);
+
+  // Close mobile menu
+  closeMobileMenu();
+
+  // Load view-specific content
+  if (viewName === 'categories') {
+    renderCategories();
+  } else if (viewName === 'analytics') {
+    updateAnalytics();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -384,8 +437,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   switchView('dashboard');
-  populateTxCategorySelect();
-  loadCategoriesToFilter(allCategories);
 });
 
 /* -------------------------
@@ -394,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initFirestoreListeners() {
   if (!currentUser) return;
 
-  // Listen to user's transactions
+  // Listen to transactions
   db.collection("transactions")
     .where('userId', '==', currentUser.uid)
     .orderBy('date', 'asc')
@@ -410,18 +461,29 @@ function initFirestoreListeners() {
       updateDashboardFromTransactions(liveTransactions);
       updateTransactionListView(liveTransactions);
       updateRecentTransactions(liveTransactions);
-      updateCategoryFilterOptions(liveTransactions);
     }, err => {
       console.error("Firestore listener error:", err);
-      liveTransactions = [];
-      updateDashboardFromTransactions([]);
-      updateTransactionListView([]);
-      updateRecentTransactions([]);
+    });
+
+  // Listen to categories
+  db.collection("categories")
+    .where('userId', '==', currentUser.uid)
+    .onSnapshot(snapshot => {
+      const cats = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        data.id = doc.id;
+        cats.push(data);
+      });
+
+      userCategories = cats;
+      updateCategorySelects();
+      renderCategories();
     });
 }
 
 /* -------------------------
-   Dashboard Updates
+   Dashboard
    ------------------------- */
 function updateDashboardFromTransactions(transactions) {
   if (!transactions || transactions.length === 0) {
@@ -432,7 +494,6 @@ function updateDashboardFromTransactions(transactions) {
     return;
   }
 
-  let totalBalance = 0;
   let monthlyIncome = 0;
   let monthlyExpense = 0;
 
@@ -469,8 +530,6 @@ function updateDashboardFromTransactions(transactions) {
 
   transactions.forEach(tx => {
     const date = toDateObject(tx.date);
-    if (tx.type === 'Credit') totalBalance += Number(tx.amount || 0);
-    else totalBalance -= Number(tx.amount || 0);
 
     if (date.getMonth() === thisMonth && date.getFullYear() === thisYear) {
       if (tx.type === 'Credit') monthlyIncome += Number(tx.amount || 0);
@@ -486,7 +545,9 @@ function updateDashboardFromTransactions(transactions) {
 }
 
 function renderBalanceChart(chartDataPoints, chartLabels) {
-  const ctx = document.getElementById('balance-trend-chart').getContext('2d');
+  const ctx = document.getElementById('balance-trend-chart');
+  if (!ctx) return;
+  
   if (balanceChartInstance) balanceChartInstance.destroy();
 
   balanceChartInstance = new Chart(ctx, {
@@ -569,13 +630,13 @@ function updateRecentTransactions(transactions) {
 }
 
 /* -------------------------
-   Transaction List & Filters
+   Transactions
    ------------------------- */
 function updateTransactionListView(transactions) {
   allTransactionsForUI = transactions.map(tx => ({
     id: tx.id,
     title: tx.description || tx.title || 'Transaction',
-    amount: Number(tx.amount || 0),
+    amount: Number(tx.amount) || 0,
     type: tx.type || 'Debit',
     category: tx.category || 'Other',
     date: toDateObject(tx.date),
@@ -595,7 +656,7 @@ function renderTransactions(list) {
   }
 
   let income = 0, expense = 0;
-  list.slice().reverse().forEach(t => {
+  list.forEach(t => {
     if (t.type === 'Credit') income += Math.abs(Number(t.amount || 0));
     else expense += Math.abs(Number(t.amount || 0));
   });
@@ -656,51 +717,39 @@ clearFiltersBtn.addEventListener('click', () => {
   applyFiltersAndRender();
 });
 
-function loadCategoriesToFilter(categories) {
+function updateCategorySelects() {
+  // Update filter dropdown
   filterCategory.innerHTML = '<option value="all">All Categories</option>';
-  categories.forEach(cat => {
+  userCategories.forEach(cat => {
     const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
+    opt.value = cat.name;
+    opt.textContent = cat.name;
     filterCategory.appendChild(opt);
   });
-}
 
-function updateCategoryFilterOptions(transactions) {
-  const cats = new Set(allCategories);
-  transactions.forEach(tx => { if (tx.category) cats.add(tx.category); });
-  loadCategoriesToFilter(Array.from(cats).sort());
-  populateTxCategorySelect(Array.from(cats).sort());
-}
-
-function populateTxCategorySelect(categories) {
-  const cats = categories || allCategories;
+  // Update transaction modal dropdown
   txCategory.innerHTML = '';
-  cats.forEach(c => {
+  userCategories.forEach(c => {
     const opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = c;
+    opt.value = c.name;
+    opt.textContent = c.name;
     txCategory.appendChild(opt);
   });
 }
 
-/* -------------------------
-   Transaction CRUD
-   ------------------------- */
-addTransactionBtn.addEventListener('click', () => openAddTransaction());
-viewAllBtn && viewAllBtn.addEventListener('click', () => switchView('transactions'));
-
-function openAddTransaction() {
+addTransactionBtn.addEventListener('click', () => {
   editingTransactionId = null;
   modalTitle.textContent = 'Add Transaction';
   txTitle.value = '';
   txAmount.value = '';
   txType.value = 'Credit';
-  txCategory.value = allCategories[0] || 'Other';
+  txCategory.value = userCategories.length > 0 ? userCategories[0].name : '';
   txDate.value = new Date().toISOString().slice(0,10);
   txDescription.value = '';
-  showModal();
-}
+  modalOverlay.classList.remove('hidden');
+});
+
+viewAllBtn && viewAllBtn.addEventListener('click', () => switchView('transactions'));
 
 window.openEditTransaction = function(id) {
   editingTransactionId = id;
@@ -711,43 +760,44 @@ window.openEditTransaction = function(id) {
     txTitle.value = data.description || data.title || '';
     txAmount.value = Math.abs(Number(data.amount || 0));
     txType.value = data.type || 'Debit';
-    txCategory.value = data.category || allCategories[0] || 'Other';
+    txCategory.value = data.category || '';
     const d = toDateObject(data.date);
     txDate.value = d.toISOString().slice(0,10);
     txDescription.value = data.note || data.description || '';
-    showModal();
+    modalOverlay.classList.remove('hidden');
   }).catch(err => {
     console.error(err);
-    alert('Unable to load transaction for editing.');
+    alert('Unable to load transaction.');
   });
 };
-
-function showModal() {
-  modalOverlay.classList.remove('hidden');
-}
 
 modalCancel.addEventListener('click', () => {
   modalOverlay.classList.add('hidden');
   editingTransactionId = null;
 });
 
-modalSave.addEventListener('click', () => {
+modalSave.addEventListener('click', async () => {
   if (!currentUser) return;
 
   const title = txTitle.value.trim();
   const amount = Number(txAmount.value || 0);
   const type = txType.value;
-  const category = txCategory.value || 'Other';
+  const category = txCategory.value;
   const dateVal = txDate.value ? new Date(txDate.value) : new Date();
-  const description = txDescription.value || '';
+  const description = txDescription.value.trim() || title;
 
   if (!title || !amount) {
     return alert('Please provide title and amount.');
   }
 
+  if (!category) {
+    return alert('Please select a category.');
+  }
+
   const payload = {
     userId: currentUser.uid,
-    description: title,
+    description: description,
+    title: title,
     amount: Math.abs(amount),
     type: type,
     category: category,
@@ -755,36 +805,316 @@ modalSave.addEventListener('click', () => {
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
-  if (editingTransactionId) {
-    db.collection('transactions').doc(editingTransactionId).update(payload).then(() => {
-      modalOverlay.classList.add('hidden');
-      editingTransactionId = null;
-    }).catch(err => {
-      console.error(err);
-      alert('Failed to update transaction.');
-    });
-  } else {
-    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    db.collection('transactions').add(payload).then(() => {
-      modalOverlay.classList.add('hidden');
-    }).catch(err => {
-      console.error(err);
-      alert('Failed to add transaction.');
-    });
+  try {
+    if (editingTransactionId) {
+      await db.collection('transactions').doc(editingTransactionId).update(payload);
+      showNotification('Transaction updated successfully');
+    } else {
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('transactions').add(payload);
+      showNotification('Transaction added successfully');
+    }
+    modalOverlay.classList.add('hidden');
+    editingTransactionId = null;
+  } catch (err) {
+    console.error(err);
+    alert('Failed to save transaction.');
   }
 });
 
 window.deleteTransaction = function(id) {
   if (!confirm('Delete this transaction?')) return;
-  db.collection('transactions').doc(id).delete().catch(err => {
-    console.error(err);
-    alert('Failed to delete.');
-  });
+  db.collection('transactions').doc(id).delete()
+    .then(() => showNotification('Transaction deleted'))
+    .catch(err => {
+      console.error(err);
+      alert('Failed to delete.');
+    });
 };
+
+/* -------------------------
+   Categories
+   ------------------------- */
+addCategoryBtn.addEventListener('click', () => {
+  editingCategoryId = null;
+  categoryModalTitle.textContent = 'Add Category';
+  categoryName.value = '';
+  categoryIcon.value = 'fa-wallet';
+  categoryType.value = 'expense';
+  categoryModalOverlay.classList.remove('hidden');
+});
+
+function renderCategories() {
+  if (!userCategories || userCategories.length === 0) {
+    categoriesList.innerHTML = '<p class="muted" style="text-align:center;padding:20px;">No categories yet. Add your first category!</p>';
+    return;
+  }
+
+  let html = '';
+  userCategories.forEach(cat => {
+    const typeColor = cat.type === 'income' ? '#1abc9c' : cat.type === 'expense' ? '#ff6b6b' : '#3498db';
+    const typeLabel = cat.type === 'income' ? 'Income' : cat.type === 'expense' ? 'Expense' : 'Both';
+    
+    html += `
+      <div class="category-item">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="category-icon" style="background:${typeColor}20;">
+            <i class="fas ${cat.icon}" style="color:${typeColor};"></i>
+          </div>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:16px;">${cat.name}</div>
+            <div style="color:#6b7280;font-size:13px;margin-top:4px;">${typeLabel}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <i class="fas fa-edit" style="cursor:pointer;color:#6b7280;" onclick="editCategory('${cat.id}')"></i>
+          <i class="fas fa-trash" style="cursor:pointer;color:#6b7280;" onclick="deleteCategory('${cat.id}')"></i>
+        </div>
+      </div>
+    `;
+  });
+
+  categoriesList.innerHTML = html;
+}
+
+window.editCategory = function(id) {
+  editingCategoryId = id;
+  const cat = userCategories.find(c => c.id === id);
+  if (!cat) return;
+
+  categoryModalTitle.textContent = 'Edit Category';
+  categoryName.value = cat.name;
+  categoryIcon.value = cat.icon;
+  categoryType.value = cat.type;
+  categoryModalOverlay.classList.remove('hidden');
+};
+
+window.deleteCategory = function(id) {
+  if (!confirm('Delete this category?')) return;
+  db.collection('categories').doc(id).delete()
+    .then(() => showNotification('Category deleted'))
+    .catch(err => {
+      console.error(err);
+      alert('Failed to delete category.');
+    });
+};
+
+categoryModalCancel.addEventListener('click', () => {
+  categoryModalOverlay.classList.add('hidden');
+  editingCategoryId = null;
+});
+
+categoryModalSave.addEventListener('click', async () => {
+  if (!currentUser) return;
+
+  const name = categoryName.value.trim();
+  const icon = categoryIcon.value;
+  const type = categoryType.value;
+
+  if (!name) {
+    return alert('Please provide a category name.');
+  }
+
+  const payload = {
+    userId: currentUser.uid,
+    name: name,
+    icon: icon,
+    type: type,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try {
+    if (editingCategoryId) {
+      await db.collection('categories').doc(editingCategoryId).update(payload);
+      showNotification('Category updated successfully');
+    } else {
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('categories').add(payload);
+      showNotification('Category added successfully');
+    }
+    categoryModalOverlay.classList.add('hidden');
+    editingCategoryId = null;
+  } catch (err) {
+    console.error(err);
+    alert('Failed to save category.');
+  }
+});
+
+/* -------------------------
+   Analytics
+   ------------------------- */
+analyticsPeriod.addEventListener('change', updateAnalytics);
+
+function updateAnalytics() {
+  const period = analyticsPeriod.value;
+  const now = new Date();
+  let startDate;
+
+  switch(period) {
+    case 'month':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case '3months':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      break;
+    case '6months':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+      break;
+    case 'year':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      break;
+    case 'all':
+    default:
+      startDate = new Date(2000, 0, 1);
+      break;
+  }
+
+  const filteredTxs = liveTransactions.filter(tx => {
+    const txDate = toDateObject(tx.date);
+    return txDate >= startDate;
+  });
+
+  let totalIncome = 0;
+  let totalExpenses = 0;
+  const categoryTotals = {};
+
+  filteredTxs.forEach(tx => {
+    const amount = Math.abs(Number(tx.amount || 0));
+    if (tx.type === 'Credit') {
+      totalIncome += amount;
+    } else {
+      totalExpenses += amount;
+      categoryTotals[tx.category] = (categoryTotals[tx.category] || 0) + amount;
+    }
+  });
+
+  const netSavings = totalIncome - totalExpenses;
+  const savingsRate = totalIncome > 0 ? ((netSavings / totalIncome) * 100).toFixed(1) : 0;
+
+  analyticsTotalIncome.textContent = currencyFormatter.format(totalIncome);
+  analyticsTotalExpenses.textContent = currencyFormatter.format(totalExpenses);
+  analyticsNetSavings.textContent = currencyFormatter.format(netSavings);
+  analyticsSavingsRate.textContent = savingsRate + '%';
+
+  renderCategoryChart(categoryTotals);
+  renderIncomeExpenseChart(totalIncome, totalExpenses);
+  renderTopCategories(categoryTotals);
+}
+
+function renderCategoryChart(categoryTotals) {
+  const ctx = document.getElementById('category-chart');
+  if (!ctx) return;
+
+  if (categoryChartInstance) categoryChartInstance.destroy();
+
+  const labels = Object.keys(categoryTotals);
+  const data = Object.values(categoryTotals);
+
+  if (labels.length === 0) {
+    return;
+  }
+
+  const colors = [
+    '#ff6b6b', '#4ecdc4', '#45b7d1', '#f7b731', '#5f27cd',
+    '#00d2d3', '#ff9ff3', '#54a0ff', '#48dbfb', '#1dd1a1'
+  ];
+
+  categoryChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: colors.slice(0, labels.length)
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right'
+        }
+      }
+    }
+  });
+}
+
+function renderIncomeExpenseChart(income, expense) {
+  const ctx = document.getElementById('income-expense-chart');
+  if (!ctx) return;
+
+  if (incomeExpenseChartInstance) incomeExpenseChartInstance.destroy();
+
+  incomeExpenseChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Income', 'Expenses'],
+      datasets: [{
+        label: 'Amount',
+        data: [income, expense],
+        backgroundColor: ['#1abc9c', '#ff6b6b']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return  value.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTopCategories(categoryTotals) {
+  const sorted = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  if (sorted.length === 0) {
+    topCategoriesList.innerHTML = '<p class="muted" style="text-align:center;padding:20px;">No expense data available</p>';
+    return;
+  }
+
+  const maxAmount = sorted[0][1];
+
+  let html = '';
+  sorted.forEach(([category, amount]) => {
+    const percentage = ((amount / maxAmount) * 100).toFixed(0);
+    html += `
+      <div class="top-category-item">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-weight:600;">${category}</span>
+          <span style="font-weight:700;">${currencyFormatter.format(amount)}</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${percentage}%;"></div>
+        </div>
+      </div>
+    `;
+  });
+
+  topCategoriesList.innerHTML = html;
+}
 
 /* -------------------------
    Keyboard Shortcuts
    ------------------------- */
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') modalOverlay.classList.add('hidden');
+  if (e.key === 'Escape') {
+    modalOverlay.classList.add('hidden');
+    categoryModalOverlay.classList.add('hidden');
+  }
 });

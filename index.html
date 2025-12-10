@@ -15,14 +15,14 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-  <!-- Firebase (include Firebase libraries) -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
   
-  <!-- Auth Container (Login/Register) -->
+  <!-- Auth Container -->
   <div id="authContainer" class="auth-container">
     <div class="auth-card">
       <div class="auth-header">
@@ -67,14 +67,24 @@
     </div>
   </div>
 
-  <!-- Main App (hidden until authenticated) -->
+  <!-- Main App -->
   <div id="mainApp" class="app-shell" style="display:none;">
 
+    <!-- Mobile Menu Toggle -->
+    <button id="mobileMenuToggle" class="mobile-menu-toggle">
+      <i class="fas fa-bars"></i>
+    </button>
+
     <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-title">Finance</div>
-        <div class="brand-sub">Personal Tracker</div>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-title">Finance</div>
+          <div class="brand-sub">Personal Tracker</div>
+        </div>
+        <button id="closeSidebar" class="close-sidebar">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
 
       <nav class="nav">
@@ -92,12 +102,15 @@
       </div>
     </aside>
 
+    <!-- Sidebar Overlay for Mobile -->
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
     <!-- Main area -->
     <main class="main">
       <header class="main-header">
         <h1>Dashboard</h1>
         <div class="user-profile" style="cursor:pointer;" id="userProfileBtn">
-          <div>
+          <div class="user-info">
             <div class="user-name" id="userName">Loading...</div>
             <div class="user-email" id="userEmail">Loading...</div>
           </div>
@@ -161,7 +174,6 @@
             <h3 class="filters-title"><i class="fas fa-filter"></i> Filters</h3>
 
             <div class="filters-grid">
-              <!-- Search -->
               <div class="filter-item">
                 <label>Search</label>
                 <div class="search-box">
@@ -170,7 +182,6 @@
                 </div>
               </div>
 
-              <!-- Type -->
               <div class="filter-item">
                 <label>Type</label>
                 <select id="filterType">
@@ -180,7 +191,6 @@
                 </select>
               </div>
 
-              <!-- Category -->
               <div class="filter-item">
                 <label>Category</label>
                 <select id="filterCategory">
@@ -188,7 +198,6 @@
                 </select>
               </div>
 
-              <!-- Clear Button -->
               <div class="filter-item clear-btn-container">
                 <button id="clearFiltersBtn">Clear Filters</button>
               </div>
@@ -210,7 +219,7 @@
         <!-- Categories view -->
         <div id="categories-view" class="view view-hidden">
           <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <div class="categories-header">
               <div>
                 <h3 style="margin:0;">Categories</h3>
                 <p class="muted" style="margin:8px 0 0 0;">Manage your income and expense categories.</p>
@@ -226,16 +235,15 @@
 
         <!-- Analytics view -->
         <div id="analytics-view" class="view view-hidden">
-          <div class="analytics-header" style="margin-bottom:20px;">
+          <div class="analytics-header">
             <h2 style="margin:0 0 8px 0;">Analytics</h2>
             <p class="muted">Insights and spending patterns</p>
           </div>
 
-          <!-- Time Period Selector -->
           <div class="card" style="padding:16px;margin-bottom:20px;">
-            <div style="display:flex;gap:12px;align-items:center;">
+            <div class="period-selector">
               <label style="font-weight:700;">Period:</label>
-              <select id="analyticsPeriod" style="padding:8px 12px;border-radius:8px;border:1px solid #e6eef2;">
+              <select id="analyticsPeriod">
                 <option value="month">This Month</option>
                 <option value="3months">Last 3 Months</option>
                 <option value="6months">Last 6 Months</option>
@@ -245,7 +253,6 @@
             </div>
           </div>
 
-          <!-- Summary Cards -->
           <div class="analytics-summary-grid">
             <div class="card analytics-summary-card">
               <div class="analytics-icon" style="background:#dff6ec;">
@@ -288,16 +295,15 @@
             </div>
           </div>
 
-          <!-- Charts Row -->
           <div class="analytics-charts-row">
-            <div class="card" style="flex:1;">
+            <div class="card chart-container">
               <h3 style="margin:0 0 16px 0;">Spending by Category</h3>
               <div style="height:300px;">
                 <canvas id="category-chart"></canvas>
               </div>
             </div>
 
-            <div class="card" style="flex:1;">
+            <div class="card chart-container">
               <h3 style="margin:0 0 16px 0;">Income vs Expenses</h3>
               <div style="height:300px;">
                 <canvas id="income-expense-chart"></canvas>
@@ -305,12 +311,9 @@
             </div>
           </div>
 
-          <!-- Top Categories -->
           <div class="card">
             <h3 style="margin:0 0 16px 0;">Top Spending Categories</h3>
-            <div id="top-categories-list" class="top-categories-list">
-              <!-- Will be populated dynamically -->
-            </div>
+            <div id="top-categories-list" class="top-categories-list"></div>
           </div>
         </div>
 
