@@ -15,76 +15,72 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-  <!-- Firebase -->
+  <!-- Firebase (compat libs) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
-  
-  <!-- Auth Container -->
-  <div id="authContainer" class="auth-container">
+  <!-- AUTH OVERLAY (shown when user not signed in) -->
+  <div id="authOverlay" class="auth-overlay">
     <div class="auth-card">
-      <div class="auth-header">
-        <div class="brand-title" style="text-align:center;">Finance</div>
-        <div class="brand-sub" style="text-align:center;">Personal Tracker</div>
+      <div class="auth-brand">
+        <div class="brand-title">Finance</div>
+        <div class="brand-sub">Personal Tracker</div>
       </div>
 
-      <!-- Login Form -->
-      <div id="loginForm" class="auth-form">
-        <h3 style="margin:16px 0 8px 0;">Welcome Back</h3>
-        <p class="muted" style="margin-bottom:16px;">Sign in to continue</p>
-        
-        <input id="loginEmail" type="email" placeholder="Email address" />
-        <input id="loginPassword" type="password" placeholder="Password" />
-        
-        <button id="loginBtn" class="btn-primary" style="width:100%;margin-top:8px;">Sign In</button>
-        
-        <div style="text-align:center;margin-top:16px;">
-          <span class="muted">Don't have an account? </span>
-          <a href="#" id="showRegisterLink" style="color:var(--accent);font-weight:600;">Register</a>
-        </div>
+      <div class="auth-tabs">
+        <button id="tabLogin" class="tab active">Login</button>
+        <button id="tabRegister" class="tab">Register</button>
+        <button id="tabReset" class="tab">Reset</button>
       </div>
 
-      <!-- Register Form -->
-      <div id="registerForm" class="auth-form" style="display:none;">
-        <h3 style="margin:16px 0 8px 0;">Create Account</h3>
-        <p class="muted" style="margin-bottom:16px;">Get started with Finance Tracker</p>
-        
-        <input id="registerName" type="text" placeholder="Full Name" />
-        <input id="registerEmail" type="email" placeholder="Email address" />
-        <input id="registerPassword" type="password" placeholder="Password (min 6 characters)" />
-        
-        <button id="registerBtn" class="btn-primary" style="width:100%;margin-top:8px;">Create Account</button>
-        
-        <div style="text-align:center;margin-top:16px;">
-          <span class="muted">Already have an account? </span>
-          <a href="#" id="showLoginLink" style="color:var(--accent);font-weight:600;">Sign In</a>
-        </div>
-      </div>
+      <div class="auth-forms">
+        <!-- LOGIN -->
+        <form id="loginForm" class="auth-form">
+          <label>Email</label>
+          <input id="loginEmail" type="email" placeholder="you@example.com" required />
+          <label>Password</label>
+          <input id="loginPassword" type="password" placeholder="••••••••" required />
+          <button id="loginBtn" class="btn-primary full">Log in</button>
+          <div class="auth-note">Don't have an account? <a href="#" id="toRegister">Register</a></div>
+          <div id="loginError" class="auth-error"></div>
+        </form>
 
-      <div id="authError" class="auth-error" style="display:none;"></div>
+        <!-- REGISTER -->
+        <form id="registerForm" class="auth-form hidden">
+          <label>Full name</label>
+          <input id="regName" type="text" placeholder="John Doe" required />
+          <label>Email</label>
+          <input id="regEmail" type="email" placeholder="you@example.com" required />
+          <label>Password</label>
+          <input id="regPassword" type="password" placeholder="Create a password" required />
+          <button id="registerBtn" class="btn-primary full">Create account</button>
+          <div class="auth-note">Already have an account? <a href="#" id="toLogin">Login</a></div>
+          <div id="registerError" class="auth-error"></div>
+        </form>
+
+        <!-- RESET PASSWORD -->
+        <form id="resetForm" class="auth-form hidden">
+          <label>Email</label>
+          <input id="resetEmail" type="email" placeholder="you@example.com" required />
+          <button id="resetBtn" class="btn-primary full">Send reset email</button>
+          <div class="auth-note">Remembered password? <a href="#" id="resetToLogin">Login</a></div>
+          <div id="resetError" class="auth-error"></div>
+          <div id="resetSuccess" class="auth-success"></div>
+        </form>
+      </div>
     </div>
   </div>
 
-  <!-- Main App -->
-  <div id="mainApp" class="app-shell" style="display:none;">
-
-    <!-- Mobile Menu Toggle -->
-    <button id="mobileMenuToggle" class="mobile-menu-toggle">
-      <i class="fas fa-bars"></i>
-    </button>
+  <!-- MAIN APP (hidden until signed in) -->
+  <div id="appRoot" class="app-shell hidden">
 
     <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="brand">
-          <div class="brand-title">Finance</div>
-          <div class="brand-sub">Personal Tracker</div>
-        </div>
-        <button id="closeSidebar" class="close-sidebar">
-          <i class="fas fa-times"></i>
-        </button>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">Finance</div>
+        <div class="brand-sub">Personal Tracker</div>
       </div>
 
       <nav class="nav">
@@ -102,19 +98,16 @@
       </div>
     </aside>
 
-    <!-- Sidebar Overlay for Mobile -->
-    <div id="sidebarOverlay" class="sidebar-overlay"></div>
-
     <!-- Main area -->
     <main class="main">
       <header class="main-header">
         <h1>Dashboard</h1>
-        <div class="user-profile" style="cursor:pointer;" id="userProfileBtn">
-          <div class="user-info">
-            <div class="user-name" id="userName">Loading...</div>
-            <div class="user-email" id="userEmail">Loading...</div>
+        <div class="user-profile" id="userProfileBox">
+          <div>
+            <div id="userName" class="user-name">John Doe</div>
+            <div id="userEmail" class="user-email">john@example.com</div>
           </div>
-          <div class="avatar" id="userAvatar"><i class="fas fa-user"></i></div>
+          <div class="avatar"><i class="fas fa-user"></i></div>
         </div>
       </header>
 
@@ -174,6 +167,7 @@
             <h3 class="filters-title"><i class="fas fa-filter"></i> Filters</h3>
 
             <div class="filters-grid">
+              <!-- Search -->
               <div class="filter-item">
                 <label>Search</label>
                 <div class="search-box">
@@ -182,6 +176,7 @@
                 </div>
               </div>
 
+              <!-- Type -->
               <div class="filter-item">
                 <label>Type</label>
                 <select id="filterType">
@@ -191,6 +186,7 @@
                 </select>
               </div>
 
+              <!-- Category -->
               <div class="filter-item">
                 <label>Category</label>
                 <select id="filterCategory">
@@ -198,6 +194,7 @@
                 </select>
               </div>
 
+              <!-- Clear Button -->
               <div class="filter-item clear-btn-container">
                 <button id="clearFiltersBtn">Clear Filters</button>
               </div>
@@ -219,127 +216,25 @@
         <!-- Categories view -->
         <div id="categories-view" class="view view-hidden">
           <div class="card">
-            <div class="categories-header">
-              <div>
-                <h3 style="margin:0;">Categories</h3>
-                <p class="muted" style="margin:8px 0 0 0;">Manage your income and expense categories.</p>
-              </div>
-              <button id="addCategoryBtn" class="btn-primary"><i class="fas fa-plus"></i> Add Category</button>
-            </div>
-
-            <div class="categories-grid" id="categoriesList">
-              <!-- Categories will be rendered here -->
-            </div>
+            <h3>Categories</h3>
+            <p class="muted">Manage your income and expense categories.</p>
+            <div id="categoriesList"></div>
           </div>
         </div>
 
-        <!-- Analytics view -->
+        <!-- Analytics view (placeholder) -->
         <div id="analytics-view" class="view view-hidden">
-          <div class="analytics-header">
-            <h2 style="margin:0 0 8px 0;">Analytics</h2>
-            <p class="muted">Insights and spending patterns</p>
-          </div>
-
-          <div class="card" style="padding:16px;margin-bottom:20px;">
-            <div class="period-selector">
-              <label style="font-weight:700;">Period:</label>
-              <select id="analyticsPeriod">
-                <option value="month">This Month</option>
-                <option value="3months">Last 3 Months</option>
-                <option value="6months">Last 6 Months</option>
-                <option value="year">This Year</option>
-                <option value="all">All Time</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="analytics-summary-grid">
-            <div class="card analytics-summary-card">
-              <div class="analytics-icon" style="background:#dff6ec;">
-                <i class="fas fa-arrow-up" style="color:#1abc9c;"></i>
-              </div>
-              <div>
-                <div class="muted">Total Income</div>
-                <div id="analytics-total-income" class="analytics-value">$0.00</div>
-              </div>
-            </div>
-
-            <div class="card analytics-summary-card">
-              <div class="analytics-icon" style="background:#ffecec;">
-                <i class="fas fa-arrow-down" style="color:#ff6b6b;"></i>
-              </div>
-              <div>
-                <div class="muted">Total Expenses</div>
-                <div id="analytics-total-expenses" class="analytics-value">$0.00</div>
-              </div>
-            </div>
-
-            <div class="card analytics-summary-card">
-              <div class="analytics-icon" style="background:#e8f4f8;">
-                <i class="fas fa-chart-line" style="color:#3498db;"></i>
-              </div>
-              <div>
-                <div class="muted">Net Savings</div>
-                <div id="analytics-net-savings" class="analytics-value">$0.00</div>
-              </div>
-            </div>
-
-            <div class="card analytics-summary-card">
-              <div class="analytics-icon" style="background:#fef5e7;">
-                <i class="fas fa-percentage" style="color:#f39c12;"></i>
-              </div>
-              <div>
-                <div class="muted">Savings Rate</div>
-                <div id="analytics-savings-rate" class="analytics-value">0%</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="analytics-charts-row">
-            <div class="card chart-container">
-              <h3 style="margin:0 0 16px 0;">Spending by Category</h3>
-              <div style="height:300px;">
-                <canvas id="category-chart"></canvas>
-              </div>
-            </div>
-
-            <div class="card chart-container">
-              <h3 style="margin:0 0 16px 0;">Income vs Expenses</h3>
-              <div style="height:300px;">
-                <canvas id="income-expense-chart"></canvas>
-              </div>
-            </div>
-          </div>
-
           <div class="card">
-            <h3 style="margin:0 0 16px 0;">Top Spending Categories</h3>
-            <div id="top-categories-list" class="top-categories-list"></div>
+            <h3>Analytics</h3>
+            <p class="muted">Coming soon — charts and breakdowns.</p>
           </div>
         </div>
 
-        <!-- Settings/Profile view -->
+        <!-- Settings view (placeholder) -->
         <div id="settings-view" class="view view-hidden">
           <div class="card">
-            <h3>Profile Settings</h3>
-            <div style="margin-top:20px;">
-              <label style="font-weight:700;display:block;margin-bottom:8px;">Display Name</label>
-              <input id="profileName" type="text" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e6eef2;" placeholder="Your name" />
-              
-              <label style="font-weight:700;display:block;margin:16px 0 8px;">Email</label>
-              <input id="profileEmail" type="email" disabled style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e6eef2;background:#f7f9fb;color:#6b7280;" />
-              
-              <button id="updateProfileBtn" class="btn-primary" style="margin-top:20px;">Update Profile</button>
-            </div>
-
-            <hr style="margin:30px 0;border:none;border-top:1px solid #eef2f5;" />
-
-            <h3>Change Password</h3>
-            <div style="margin-top:20px;">
-              <label style="font-weight:700;display:block;margin-bottom:8px;">New Password</label>
-              <input id="newPassword" type="password" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e6eef2;" placeholder="Enter new password" />
-              
-              <button id="changePasswordBtn" class="btn-primary" style="margin-top:12px;">Change Password</button>
-            </div>
+            <h3>Settings</h3>
+            <p class="muted">Profile and app preferences.</p>
           </div>
         </div>
 
@@ -347,7 +242,7 @@
     </main>
   </div>
 
-  <!-- Transaction Modal -->
+  <!-- Add/Edit Modals (simple implementation) -->
   <div id="modalOverlay" class="modal-overlay hidden">
     <div class="modal">
       <h3 id="modalTitle">Add Transaction</h3>
@@ -357,7 +252,7 @@
         <input id="txTitle" type="text" placeholder="E.g., Monthly Salary" />
 
         <label>Amount</label>
-        <input id="txAmount" type="number" step="0.01" placeholder="0.00" />
+        <input id="txAmount" type="number" placeholder="0.00" />
 
         <label>Type</label>
         <select id="txType">
@@ -371,53 +266,13 @@
         <label>Date</label>
         <input id="txDate" type="date" />
 
-        <label>Description (Optional)</label>
+        <label>Description</label>
         <input id="txDescription" type="text" placeholder="Optional description" />
       </div>
 
       <div class="modal-actions">
         <button id="modalCancel" class="btn-ghost">Cancel</button>
         <button id="modalSave" class="btn-primary">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Category Modal -->
-  <div id="categoryModalOverlay" class="modal-overlay hidden">
-    <div class="modal">
-      <h3 id="categoryModalTitle">Add Category</h3>
-
-      <div class="modal-body">
-        <label>Category Name</label>
-        <input id="categoryName" type="text" placeholder="E.g., Travel" />
-
-        <label>Icon</label>
-        <select id="categoryIcon">
-          <option value="fa-wallet">💼 Wallet</option>
-          <option value="fa-money-check-alt">💰 Money</option>
-          <option value="fa-utensils">🍽️ Food</option>
-          <option value="fa-car">🚗 Transport</option>
-          <option value="fa-shopping-cart">🛒 Shopping</option>
-          <option value="fa-tv">📺 Entertainment</option>
-          <option value="fa-file-invoice-dollar">📄 Bills</option>
-          <option value="fa-heartbeat">❤️ Health</option>
-          <option value="fa-plane">✈️ Travel</option>
-          <option value="fa-home">🏠 Home</option>
-          <option value="fa-graduation-cap">🎓 Education</option>
-          <option value="fa-dumbbell">💪 Fitness</option>
-        </select>
-
-        <label>Type</label>
-        <select id="categoryType">
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="both">Both</option>
-        </select>
-      </div>
-
-      <div class="modal-actions">
-        <button id="categoryModalCancel" class="btn-ghost">Cancel</button>
-        <button id="categoryModalSave" class="btn-primary">Save</button>
       </div>
     </div>
   </div>
